@@ -115,10 +115,13 @@ void get_selection(paste_src *src, struct wl_display *display)
             fprintf(stderr, "Failed to allocate memory\n");
         }
 
-        if (poll(&watch_for_data, 1, WAIT_TIME))
+        while (poll(&watch_for_data, 1, WAIT_TIME))
         {
-            src->len[i] = read(fds[0], src->data[i], MAX_READ_SIZE);
-        } else {
+            src->len[i] += read(fds[0], src->data[i], MAX_READ_SIZE);
+        }
+
+        if (src->len[i] == 0)
+        {
             src->invalid_data[i] = true;
         }
 
@@ -150,7 +153,13 @@ void get_selection(paste_src *src, struct wl_display *display)
 
 paste_src *paste_init(void)
 {
-    return malloc(sizeof(paste_src));
+    paste_src *src = malloc(sizeof(paste_src));
+    for (int i = 0; i <MAX_MIME_TYPES; i++)
+    {
+        src->len[i] = 0;
+        src->data[i] = NULL;
+    }
+    return src;
 }
 
 void paste_destroy(paste_src *src)
