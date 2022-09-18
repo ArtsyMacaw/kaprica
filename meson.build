@@ -13,7 +13,7 @@ cc = meson.get_compiler('c')
 
 wayland = dependency('wayland-client')
 wayland_scanner = find_program('wayland-scanner')
-magic = dependency('libmagic')
+magic = cc.find_library('libmagic')
 
 wlr_prot = 'protocol/wlr-data-control-unstable-v1.xml'
 wlr_data = 'wlr-data-control'
