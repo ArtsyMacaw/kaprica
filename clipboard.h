@@ -1,6 +1,9 @@
 #include <stdbool.h>
 #include "wlr-data-control.h"
 
+#ifndef CLIPBOARD_H
+#define CLIPBOARD_H
+
 // No source should be offering more than 25 types hopefully
 #define MAX_MIME_TYPES 25
 // We accept max 200MB of data
@@ -50,3 +53,5 @@ int set_primary_selection(void *data,
 copy_src *copy_init(void);
 void copy_destroy(copy_src *src);
 void copy_clear(copy_src *src);
+
+#endif
