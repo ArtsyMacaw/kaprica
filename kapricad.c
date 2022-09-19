@@ -33,7 +33,8 @@ static void sync_sources(copy_src *copy, paste_src *paste)
     copy->num_mime_types = paste->num_mime_types;
     for (int i = 0; i < paste->num_mime_types; i++)
     {
-        copy->data[i] = strdup(paste->data[i]);
+        copy->data[i] = malloc(paste->len[i]);
+        memcpy(copy->data[i], paste->data[i], paste->len[i]);
         copy->len[i] = paste->len[i];
         copy->mime_types[i] = strdup(paste->mime_types[i]);
         if (!copy->data[i] || !copy->mime_types[i])

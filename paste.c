@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <assert.h>
 #include <string.h>
 #include "clipboard.h"
 #include "wlr-data-control.h"
@@ -95,6 +94,7 @@ void get_selection(paste_src *src, struct wl_display *display)
         if (pipe(fds) == -1)
         {
             fprintf(stderr, "Failed to create pipe\n");
+            exit(1);
         }
 
         struct pollfd watch_for_data =
@@ -109,36 +109,38 @@ void get_selection(paste_src *src, struct wl_display *display)
         wl_display_flush(display);
 
         // Allocate max size for simplicity's sake
-        src->data[i] = malloc(MAX_READ_SIZE);
+        src->data[i] = malloc(MAX_DATA_SIZE);
         if (!src->data[i])
         {
             fprintf(stderr, "Failed to allocate memory\n");
+            exit(1);
         }
 
-        while (poll(&watch_for_data, 1, WAIT_TIME))
+        while (poll(&watch_for_data, 1, WAIT_TIME) > 0)
         {
-            src->len[i] += read(fds[0], src->data[i], MAX_READ_SIZE);
-        }
-
-        if (src->len[i] == 0)
-        {
-            src->invalid_data[i] = true;
+            int bytes_read = read(fds[0], src->data[i], READ_SIZE);
+            // If we get an error (-1) dont change the length
+            src->len[i] += (bytes_read > 0) ? bytes_read : 0;
+            if (src->len[i] >= (MAX_DATA_SIZE - READ_SIZE))
+            {
+                fprintf(stderr, "Source is too large to copy\n");
+                src->invalid_data[i] = true;
+            }
         }
 
         close(fds[0]);
         close(fds[1]);
 
-        if (src->len[i] >= MAX_READ_SIZE)
+        if (src->len[i] == 0)
         {
-            fprintf(stderr, "Source is too large to copy\n");
             src->invalid_data[i] = true;
-        }
-
-        // If its invalid its going to get freed shortly, so we dont need to realloc
-        if(!src->invalid_data[i])
-        {
+        } else {
             src->data[i] = realloc(src->data[i], src->len[i]);
-            assert(src->data[i]); // realloc is only ever reducing size
+            if (!src->data[i])
+            {
+                fprintf(stderr, "Failed to allocate memory\n");
+                exit(1);
+            }
         }
     }
 

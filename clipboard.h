@@ -7,7 +7,9 @@
 // No source should be offering more than 25 types hopefully
 #define MAX_MIME_TYPES 25
 // We accept max 200MB of data
-#define MAX_READ_SIZE 209715200
+#define MAX_DATA_SIZE 209715200
+// Read 64 KiB the capacity of pipes() buffer
+#define READ_SIZE 65536
 // Give the client 100ms to start writing data
 #define WAIT_TIME 100
 
@@ -17,6 +19,7 @@ typedef enum
     SELECTION,
     PRIMARY
 } clipboard_buffer;
+
 typedef struct
 {
     void *data[MAX_MIME_TYPES];
