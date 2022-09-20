@@ -31,16 +31,25 @@ static void global_add(void *data,
 
 static void sync_sources(copy_src *copy, paste_src *paste)
 {
-    copy->num_mime_types = paste->num_mime_types;
     for (int i = 0; i < paste->num_mime_types; i++)
     {
-        copy->data[i] = malloc(paste->len[i]);
-        memcpy(copy->data[i], paste->data[i], paste->len[i]);
-        copy->len[i] = paste->len[i];
-        copy->mime_types[i] = strdup(paste->mime_types[i]);
-        if (!copy->data[i] || !copy->mime_types[i])
+        if (paste->invalid_data[i] == false)
         {
-            fprintf(stderr, "Failed to allocate memory\n");
+            copy->data[copy->num_mime_types] = malloc(paste->len[i]);
+            if (!copy->data[copy->num_mime_types])
+            {
+                fprintf(stderr, "Failed to allocate memory\n");
+                exit(1);
+            }
+            memcpy(copy->data[copy->num_mime_types], paste->data[i], paste->len[i]);
+            copy->len[copy->num_mime_types] = paste->len[i];
+            copy->mime_types[copy->num_mime_types] = strdup(paste->mime_types[i]);
+            if (!copy->mime_types[copy->num_mime_types])
+            {
+                fprintf(stderr, "Failed to allocate memory\n");
+                exit(1);
+            }
+            copy->num_mime_types++;
         }
     }
 }

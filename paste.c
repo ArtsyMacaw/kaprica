@@ -20,7 +20,7 @@ static void data_control_offer_mime_handler(void *data,
         src->mime_types[src->num_mime_types] = strdup(mime_type);
         src->num_mime_types++;
     } else {
-        fprintf(stderr, "failed to copy all mime types\n");
+        fprintf(stderr, "Too many mime types to copy\n");
     }
 }
 
@@ -76,16 +76,6 @@ void watch_clipboard(struct zwlr_data_control_device_v1 *control_device, void *d
             &zwlr_data_control_device_v1_listener, data);
 }
 
-void remove_from_list(paste_src *src, int entry)
-{
-    src->num_mime_types--;
-    free(src->data[entry]);
-    free(src->mime_types[entry]);
-    src->data[entry] = src->data[src->num_mime_types];
-    src->mime_types[entry] = src->mime_types[src->num_mime_types];
-    src->len[entry] = src->len[src->num_mime_types];
-}
-
 void get_selection(paste_src *src, struct wl_display *display)
 {
     for (int i = 0; i < src->num_mime_types; i++)
@@ -118,7 +108,8 @@ void get_selection(paste_src *src, struct wl_display *display)
 
         while (poll(&watch_for_data, 1, WAIT_TIME) > 0)
         {
-            int bytes_read = read(fds[0], src->data[i], READ_SIZE);
+            void *sub_array = src->data[i] + src->len[i];
+            int bytes_read = read(fds[0], sub_array, READ_SIZE);
             // If we get an error (-1) dont change the length
             src->len[i] += (bytes_read > 0) ? bytes_read : 0;
             if (src->len[i] >= (MAX_DATA_SIZE - READ_SIZE))
@@ -135,20 +126,13 @@ void get_selection(paste_src *src, struct wl_display *display)
         {
             src->invalid_data[i] = true;
         } else {
+            src->invalid_data[i] = false;
             src->data[i] = realloc(src->data[i], src->len[i]);
             if (!src->data[i])
             {
                 fprintf(stderr, "Failed to allocate memory\n");
                 exit(1);
             }
-        }
-    }
-
-    for (int i = 0; i < src->num_mime_types; i++)
-    {
-        if (src->invalid_data[i])
-        {
-            remove_from_list(src, i);
         }
     }
 }
