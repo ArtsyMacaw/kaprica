@@ -106,10 +106,20 @@ void get_selection(paste_src *src, struct wl_display *display)
             exit(1);
         }
 
-        while (poll(&watch_for_data, 1, WAIT_TIME) > 0)
+        int wait_time;
+        if (!strncmp("image/png", src->mime_types[i], strlen("image/png")) ||
+                !strncmp("image/jpeg", src->mime_types[i], strlen("image/jpeg")))
+        {
+            wait_time = WAIT_TIME_LONG;
+        } else {
+            wait_time = WAIT_TIME_SHORT;
+        }
+
+        while (poll(&watch_for_data, 1, wait_time) > 0)
         {
             void *sub_array = src->data[i] + src->len[i];
             int bytes_read = read(fds[0], sub_array, READ_SIZE);
+            wait_time = (bytes_read > 0) ? WAIT_TIME_LONGEST : 0;
             // If we get an error (-1) dont change the length
             src->len[i] += (bytes_read > 0) ? bytes_read : 0;
             if (src->len[i] >= (MAX_DATA_SIZE - READ_SIZE))

@@ -10,8 +10,12 @@
 #define MAX_DATA_SIZE 52428800
 // Read 64 KiB the capacity of pipes() buffer
 #define READ_SIZE 65536
-// Give the client 100ms to start writing data
-#define WAIT_TIME 2000
+/* By default wait 100ms for the client to start writing data
+ for images and other types that may take longer we wait a second
+ If we succesfully received data we can safetly wait for a while */
+#define WAIT_TIME_SHORT 100
+#define WAIT_TIME_LONG 1000
+#define WAIT_TIME_LONGEST 3000
 
 typedef enum
 {
