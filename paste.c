@@ -127,6 +127,10 @@ void get_selection(paste_src *src, struct wl_display *display)
                 fprintf(stderr, "Source is too large to copy\n");
                 src->invalid_data[i] = true;
             }
+            if (bytes_read < READ_SIZE)
+            {
+                break;
+            }
         }
 
         close(fds[0]);
