@@ -5,6 +5,8 @@
 #include <poll.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/signalfd.h>
+#include <signal.h>
 #include <stdbool.h>
 #include "wlr-data-control.h"
 #include "clipboard.h"
@@ -17,8 +19,7 @@ static void global_add(void *data,
         uint32_t name,
         const char *interface,
         uint32_t version)
-{
-    if (strcmp(interface, "zwlr_data_control_manager_v1") == 0)
+{ if (strcmp(interface, "zwlr_data_control_manager_v1") == 0)
     {
         cmng = wl_registry_bind(registry, name, &zwlr_data_control_manager_v1_interface, 1);
     }
@@ -65,11 +66,28 @@ int main (int argc, char *argv[])
         return 1;
     }
 
-    int display_fd = wl_display_get_fd(display);
-    struct pollfd wait_for_events =
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGTERM);
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) == -1)
     {
-        .fd = display_fd,
-        .events = POLLIN
+        fprintf(stderr, "Failed to mask signals\n");
+        return 1;
+    }
+
+    int watch_signals = signalfd(-1, &mask, 0);
+    int display_fd = wl_display_get_fd(display);
+    struct pollfd wait_for_events[] =
+    {
+        {
+            .fd = display_fd,
+            .events = POLLIN
+        },
+        {
+            .fd = watch_signals,
+            .events = POLLIN
+        }
     };
 
     struct wl_registry *registry = wl_display_get_registry(display);
@@ -123,17 +141,25 @@ int main (int argc, char *argv[])
             goto x;
         }
 
-        if (poll(&wait_for_events, 1, -1) < 0)
+        if (poll(wait_for_events, 2, -1) < 0)
         {
             fprintf(stderr, "Poll failed\n");
             wl_display_cancel_read(display);
             return 1;
+        }
+        
+        if(poll(&wait_for_events[1], 1, 0) > 0)
+        {
+            printf("Stopping Kaprica...\n");
+            wl_display_cancel_read(display);
+            break;
         }
 
         wl_display_read_events(display);
     }
 
     // Cleanup that shouldn't be necessary but helps analyze with valgrind
+    close(watch_signals);
     copy_destroy(copy);
     paste_destroy(paste);
     zwlr_data_control_device_v1_destroy(dmng);

@@ -45,6 +45,7 @@ typedef struct
     uint32_t len[MAX_MIME_TYPES];
     bool expired;
     int num_mime_types;
+    struct zwlr_data_control_source_v1 *source;
 } copy_src;
 
 int set_selection(void *data,

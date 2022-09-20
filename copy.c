@@ -50,12 +50,13 @@ int set_selection(void *data,
         struct zwlr_data_control_manager_v1 *control_manager,
         struct zwlr_data_control_device_v1 *device_manager)
 {
+    copy_src *copy = (copy_src *) data;
     struct zwlr_data_control_source_v1 *data_src =
         zwlr_data_control_manager_v1_create_data_source(control_manager);
+    copy->source = data_src;
 
     zwlr_data_control_source_v1_add_listener(data_src, &zwlr_data_control_source_v1_listener, data);
 
-    copy_src *copy = (copy_src *) data;
     for (int i = 0; i < copy->num_mime_types; i++)
     {
         zwlr_data_control_source_v1_offer(data_src, copy->mime_types[i]);
@@ -99,6 +100,7 @@ void copy_destroy(copy_src *src)
         free(src->data[i]);
         free(src->mime_types[i]);
     }
+    zwlr_data_control_source_v1_destroy(src->source);
     free(src);
 }
 
