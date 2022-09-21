@@ -14,8 +14,8 @@
  for images and other types that may take longer we wait a second
  If we succesfully received data we can safetly wait for a while */
 #define WAIT_TIME_SHORT 100
-#define WAIT_TIME_LONG 1000
-#define WAIT_TIME_LONGEST 3000
+#define WAIT_TIME_LONG 2000
+#define WAIT_TIME_LONGEST 8000
 
 typedef enum
 {

@@ -122,10 +122,11 @@ void get_selection(paste_src *src, struct wl_display *display)
             wait_time = (bytes_read > 0) ? WAIT_TIME_LONGEST : 0;
             // If we get an error (-1) dont change the length
             src->len[i] += (bytes_read > 0) ? bytes_read : 0;
-            if (src->len[i] >= (MAX_DATA_SIZE - READ_SIZE))
+            if (src->len[i] >= (MAX_DATA_SIZE - (READ_SIZE * 2)))
             {
                 fprintf(stderr, "Source is too large to copy\n");
                 src->invalid_data[i] = true;
+                break;
             }
             if (bytes_read < READ_SIZE)
             {
