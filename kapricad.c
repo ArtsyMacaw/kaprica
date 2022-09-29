@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include "wlr-data-control.h"
 #include "clipboard.h"
+#include "xmalloc.h"
 
 static struct zwlr_data_control_manager_v1 *cmng = NULL;
 static struct wl_seat *seat = NULL;
@@ -35,20 +36,10 @@ static void sync_sources(copy_src *copy, paste_src *paste)
     {
         if (paste->invalid_data[i] == false)
         {
-            copy->data[copy->num_mime_types] = malloc(paste->len[i]);
-            if (!copy->data[copy->num_mime_types])
-            {
-                fprintf(stderr, "Failed to allocate memory\n");
-                exit(1);
-            }
+            copy->data[copy->num_mime_types] = xmalloc(paste->len[i]);
             memcpy(copy->data[copy->num_mime_types], paste->data[i], paste->len[i]);
             copy->len[copy->num_mime_types] = paste->len[i];
-            copy->mime_types[copy->num_mime_types] = strdup(paste->mime_types[i]);
-            if (!copy->mime_types[copy->num_mime_types])
-            {
-                fprintf(stderr, "Failed to allocate memory\n");
-                exit(1);
-            }
+            copy->mime_types[copy->num_mime_types] = xstrdup(paste->mime_types[i]);
             copy->num_mime_types++;
         }
     }
@@ -113,11 +104,6 @@ int main (int argc, char *argv[])
         zwlr_data_control_manager_v1_get_data_device(cmng, seat);
 
     paste_src *paste = paste_init();
-    if (!paste)
-    {
-        fprintf(stderr, "Failed to allocate memory\n");
-        return 1;
-    }
     watch_clipboard(dmng, paste);
 
     // Wait for mime type events to happen

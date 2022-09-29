@@ -30,6 +30,16 @@ glue = custom_target(wlr_data + ' code',
   command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@']
 )
 
-lib = static_library(wlr_data, glue, header, 'clipboard.h', 'copy.c', 'paste.c', dependencies: wayland)
+lib = static_library(
+  wlr_data,
+  glue,
+  header,
+  'clipboard.h',
+  'copy.c',
+  'paste.c',
+  'xmalloc.h',
+  'xmalloc.c',
+  dependencies: wayland
+)
 
 executable('kaprica', 'kapricad.c', link_with: lib, dependencies: [wayland, magic])

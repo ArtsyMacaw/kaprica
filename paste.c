@@ -9,6 +9,7 @@
 #include <string.h>
 #include "clipboard.h"
 #include "wlr-data-control.h"
+#include "xmalloc.h"
 
 static void data_control_offer_mime_handler(void *data,
         struct zwlr_data_control_offer_v1 *data_offer,
@@ -17,7 +18,7 @@ static void data_control_offer_mime_handler(void *data,
     paste_src *src = (paste_src *) data;
     if (src->num_mime_types < (MAX_MIME_TYPES - 1))
     {
-        src->mime_types[src->num_mime_types] = strdup(mime_type);
+        src->mime_types[src->num_mime_types] = xstrdup(mime_type);
         src->num_mime_types++;
     } else {
         fprintf(stderr, "Too many mime types to copy\n");
@@ -99,12 +100,7 @@ void get_selection(paste_src *src, struct wl_display *display)
         wl_display_flush(display);
 
         // Allocate max size for simplicity's sake
-        src->data[i] = malloc(MAX_DATA_SIZE);
-        if (!src->data[i])
-        {
-            fprintf(stderr, "Failed to allocate memory\n");
-            exit(1);
-        }
+        src->data[i] = xmalloc(MAX_DATA_SIZE);
 
         int wait_time;
         if (!strncmp("image/png", src->mime_types[i], strlen("image/png")) ||
@@ -142,19 +138,14 @@ void get_selection(paste_src *src, struct wl_display *display)
             src->invalid_data[i] = true;
         } else {
             src->invalid_data[i] = false;
-            src->data[i] = realloc(src->data[i], src->len[i]);
-            if (!src->data[i])
-            {
-                fprintf(stderr, "Failed to allocate memory\n");
-                exit(1);
-            }
+            src->data[i] = xrealloc(src->data[i], src->len[i]);
         }
     }
 }
 
 paste_src *paste_init(void)
 {
-    paste_src *src = malloc(sizeof(paste_src));
+    paste_src *src = xmalloc(sizeof(paste_src));
     for (int i = 0; i <MAX_MIME_TYPES; i++)
     {
         src->len[i] = 0;

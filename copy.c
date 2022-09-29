@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -5,6 +6,7 @@
 #include <stdbool.h>
 #include "clipboard.h"
 #include "wlr-data-control.h"
+#include "xmalloc.h"
 
 static void data_control_source_send_handler(void *data,
         struct zwlr_data_control_source_v1 *data_src,
@@ -87,7 +89,7 @@ int set_primary_selection(void *data,
 
 copy_src *copy_init(void)
 {
-    copy_src *src = malloc(sizeof(copy_src));
+    copy_src *src = xmalloc(sizeof(copy_src));
     src->expired = false;
     src->num_mime_types = 0;
     return src;
