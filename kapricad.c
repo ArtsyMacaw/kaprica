@@ -128,6 +128,7 @@ int main(int argc, char *argv[])
     {
         get_selection(paste, display);
         sync_sources(copy, paste);
+        database_insert_source(db, copy);
     }
     set_selection(copy, cmng, dmng);
 
