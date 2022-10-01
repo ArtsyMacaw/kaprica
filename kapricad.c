@@ -33,6 +33,18 @@ static void global_add(void *data, struct wl_registry *registry, uint32_t name,
     }
 }
 
+static void global_remove(void *data, struct wl_registry *registry,
+                          uint32_t name)
+{
+    /* Empty */
+}
+
+struct wl_registry_listener registry_listener =
+{
+    .global = global_add,
+    .global_remove = global_remove
+};
+
 static void sync_sources(copy_src *copy, paste_src *paste)
 {
     for (int i = 0; i < paste->num_mime_types; i++)
@@ -50,17 +62,14 @@ static void sync_sources(copy_src *copy, paste_src *paste)
     }
 }
 
-static void global_remove(void *data, struct wl_registry *registry,
-                          uint32_t name)
+static void prepare_read(struct wl_display *display)
 {
-    /* Empty */
+    while (wl_display_prepare_read(display) != 0)
+    {
+        wl_display_dispatch_pending(display);
+    }
+    wl_display_flush(display);
 }
-
-struct wl_registry_listener registry_listener =
-{
-    .global = global_add,
-    .global_remove = global_remove
-};
 
 int main(int argc, char *argv[])
 {
@@ -136,12 +145,7 @@ int main(int argc, char *argv[])
 
     while (true)
     {
-    x:
-        while (wl_display_prepare_read(display) != 0)
-        {
-            wl_display_dispatch_pending(display);
-        }
-        wl_display_flush(display);
+        prepare_read(display);
 
         if (copy->expired)
         {
@@ -151,7 +155,7 @@ int main(int argc, char *argv[])
             sync_sources(copy, paste);
             set_selection(copy, cmng, dmng);
             database_insert_source(db, copy);
-            goto x;
+            prepare_read(display);
         }
 
         // Implement timerfd to clean up old database entries
