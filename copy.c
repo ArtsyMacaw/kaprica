@@ -1,11 +1,11 @@
-#include "clipboard.h"
-#include "wlr-data-control.h"
-#include "xmalloc.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "clipboard.h"
+#include "wlr-data-control.h"
+#include "xmalloc.h"
 
 static void
 data_control_source_send_handler(void *data,
@@ -48,7 +48,7 @@ static void offer_text(struct zwlr_data_control_source_v1 *data_src)
     zwlr_data_control_source_v1_offer(data_src, "text/plain;charset=utf8");
 }
 
-int set_selection(void *data,
+void set_selection(void *data,
                   struct zwlr_data_control_manager_v1 *control_manager,
                   struct zwlr_data_control_device_v1 *device_manager)
 {
@@ -66,10 +66,9 @@ int set_selection(void *data,
     }
 
     zwlr_data_control_device_v1_set_selection(device_manager, data_src);
-    return 0;
 }
 
-int set_primary_selection(void *data,
+void set_primary_selection(void *data,
                           struct zwlr_data_control_manager_v1 *control_manager,
                           struct zwlr_data_control_device_v1 *device_manager)
 {
@@ -86,7 +85,6 @@ int set_primary_selection(void *data,
     }
 
     zwlr_data_control_device_v1_set_primary_selection(device_manager, data_src);
-    return 0;
 }
 
 copy_src *copy_init(void)

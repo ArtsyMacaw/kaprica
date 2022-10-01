@@ -1,8 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 700
-#include "clipboard.h"
-#include "wlr-data-control.h"
-#include "xmalloc.h"
 #include <errno.h>
 #include <poll.h>
 #include <stdbool.h>
@@ -10,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "clipboard.h"
+#include "wlr-data-control.h"
+#include "xmalloc.h"
 
 static void
 data_control_offer_mime_handler(void *data,

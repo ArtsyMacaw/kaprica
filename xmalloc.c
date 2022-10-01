@@ -1,8 +1,8 @@
 #define _XOPEN_SOURCE 700
-#include "xmalloc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "xmalloc.h"
 
 void *xmalloc(size_t size)
 {

@@ -1,13 +1,13 @@
 #define _POSIX_C_SOURCE 200112L
-#include "database.h"
-#include "clipboard.h"
-#include "xmalloc.h"
 #include <sqlite3.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "database.h"
+#include "clipboard.h"
+#include "xmalloc.h"
 
 /* Every statement we intend to use */
 static sqlite3_stmt *create_main_table, *create_content_table,
@@ -154,7 +154,7 @@ void database_insert_source(sqlite3 *db, copy_src *src)
     execute_statement(insert_source_entry);
     sqlite3_reset(insert_source_entry);
 
-    int rowid = sqlite3_last_insert_rowid(db);
+    uint32_t rowid = sqlite3_last_insert_rowid(db);
     for (int i = 0; i < src->num_mime_types; i++)
     {
         bind_statement(insert_source_content, ENTRY_BINDING, &rowid, 0, INT);
@@ -176,7 +176,7 @@ uint32_t database_get_latest_source_id(sqlite3 *db)
 {
     execute_statement(select_latest_source);
 
-    int ret = sqlite3_column_int(select_latest_source, 0);
+    uint32_t ret = sqlite3_column_int(select_latest_source, 0);
     sqlite3_reset(select_latest_source);
     return ret;
 }

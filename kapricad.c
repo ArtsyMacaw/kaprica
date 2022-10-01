@@ -1,18 +1,20 @@
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 700
-#include "clipboard.h"
-#include "database.h"
-#include "wlr-data-control.h"
-#include "xmalloc.h"
+#include <stdint.h>
 #include <poll.h>
 #include <signal.h>
 #include <sqlite3.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/signalfd.h>
 #include <unistd.h>
+#include "clipboard.h"
+#include "database.h"
+#include "wlr-data-control.h"
+#include "xmalloc.h"
 
 static struct zwlr_data_control_manager_v1 *cmng = NULL;
 static struct wl_seat *seat = NULL;
@@ -113,7 +115,7 @@ int main(int argc, char *argv[])
         if (!paste->offer && db_is_not_empty)
         {
             printf("Loading from source database\n");
-            int id = database_get_latest_source_id(db);
+            uint32_t id = database_get_latest_source_id(db);
             if (id)
             {
                 database_get_source(db, id, copy);

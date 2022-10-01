@@ -1,5 +1,6 @@
-#include "wlr-data-control.h"
+#include <stdint.h>
 #include <stdbool.h>
+#include "wlr-data-control.h"
 
 #ifndef CLIPBOARD_H
 #define CLIPBOARD_H
@@ -34,7 +35,7 @@ typedef struct
     uint32_t len[MAX_MIME_TYPES];
     bool invalid_data[MAX_MIME_TYPES];
     bool expired;
-    int num_mime_types;
+    uint32_t num_mime_types;
     struct zwlr_data_control_offer_v1 *offer;
     clipboard_buffer buf;
 } paste_src;
@@ -52,14 +53,14 @@ typedef struct
     char *mime_types[MAX_MIME_TYPES];
     uint32_t len[MAX_MIME_TYPES];
     bool expired;
-    int num_mime_types;
+    uint32_t num_mime_types;
     struct zwlr_data_control_source_v1 *source;
 } copy_src;
 
-int set_selection(void *data,
+void set_selection(void *data,
                   struct zwlr_data_control_manager_v1 *control_manager,
                   struct zwlr_data_control_device_v1 *device_manager);
-int set_primary_selection(void *data,
+void set_primary_selection(void *data,
                           struct zwlr_data_control_manager_v1 *control_manager,
                           struct zwlr_data_control_device_v1 *device_manager);
 copy_src *copy_init(void);

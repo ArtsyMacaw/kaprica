@@ -1,6 +1,6 @@
-#include "clipboard.h"
 #include <sqlite3.h>
 #include <stdint.h>
+#include "clipboard.h"
 
 #ifndef DATABASE_H
 #define DATABASE_H
