@@ -24,7 +24,7 @@ data_control_offer_mime_handler(void *data,
     }
     else
     {
-        fprintf(stderr, "Too many mime types to copy\n");
+        fprintf(stderr, "Failed to copy mime type: %s\n", mime_type);
     }
 }
 
@@ -96,14 +96,14 @@ void get_selection(paste_src *src, struct wl_display *display)
 
         struct pollfd watch_for_data = {.fd = fds[0], .events = POLLIN};
 
-        // Events need to be dispatched and flushed so the other client can
-        // recieve the fd
+        /* Events need to be dispatched and flushed so the other client
+         * can recieve the fd */
         zwlr_data_control_offer_v1_receive(src->offer, src->mime_types[i],
                                            fds[1]);
         wl_display_dispatch_pending(display);
         wl_display_flush(display);
 
-        // Allocate max size for simplicity's sake
+        /* Allocate max size for simplicity's sake */
         src->data[i] = xmalloc(MAX_DATA_SIZE);
 
         int wait_time;
