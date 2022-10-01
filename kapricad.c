@@ -8,9 +8,11 @@
 #include <sys/signalfd.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <sqlite3.h>
 #include "wlr-data-control.h"
 #include "clipboard.h"
 #include "xmalloc.h"
+#include "database.h"
 
 static struct zwlr_data_control_manager_v1 *cmng = NULL;
 static struct wl_seat *seat = NULL;
@@ -103,18 +105,38 @@ int main (int argc, char *argv[])
     struct zwlr_data_control_device_v1 *dmng =
         zwlr_data_control_manager_v1_get_data_device(cmng, seat);
 
+    sqlite3 *db = database_init();
+    copy_src *copy = copy_init();
     paste_src *paste = paste_init();
-    watch_clipboard(dmng, paste);
 
-    // Wait for mime type events to happen
-    while (!paste->num_mime_types)
+    watch_clipboard(dmng, paste);
+    wl_display_roundtrip(display);
+
+    /* If selection is set copy and re-serve it; if its unset
+     * try to load last source from history, and if all else
+     * fails just wait for selection to be set */
+    bool db_is_not_empty = true;
+    while (!paste->num_mime_types && !copy->num_mime_types)
     {
+        if (!paste->offer && db_is_not_empty)
+        {
+            printf("Loading from source database\n");
+            int id = database_get_latest_source_id(db);
+            if (id)
+            {
+                database_get_source(db, id, copy);
+                break;
+            }
+            db_is_not_empty = false;
+        }
         wl_display_dispatch(display);
     }
 
-    get_selection(paste, display);
-    copy_src *copy = copy_init();
-    sync_sources(copy, paste);
+    if (!copy->num_mime_types)
+    {
+        get_selection(paste, display);
+        sync_sources(copy, paste);
+    }
     set_selection(copy, cmng, dmng);
 
     while (true)
@@ -133,9 +155,11 @@ int main (int argc, char *argv[])
             copy_clear(copy);
             sync_sources(copy, paste);
             set_selection(copy, cmng, dmng);
+            database_insert_source(db, copy);
             goto x;
         }
 
+        // Implement timerfd to clean up old database entries
         if (poll(wait_for_events, 2, -1) < 0)
         {
             fprintf(stderr, "Poll failed\n");
@@ -154,6 +178,7 @@ int main (int argc, char *argv[])
     }
 
     // Cleanup that shouldn't be necessary but helps analyze with valgrind
+    database_destroy(db);
     close(watch_signals);
     copy_destroy(copy);
     paste_destroy(paste);

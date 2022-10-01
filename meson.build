@@ -11,6 +11,7 @@ project(
 
 cc = meson.get_compiler('c')
 
+sql = dependency('sqlite3', version: '>=3.6.19')
 wayland = dependency('wayland-client')
 wayland_scanner = find_program('wayland-scanner')
 magic = cc.find_library('libmagic')
@@ -37,9 +38,11 @@ lib = static_library(
   'clipboard.h',
   'copy.c',
   'paste.c',
+  'database.c',
+  'database.h',
   'xmalloc.h',
   'xmalloc.c',
-  dependencies: wayland
+  dependencies: [wayland, sql]
 )
 
 executable('kaprica', 'kapricad.c', link_with: lib, dependencies: [wayland, magic])
