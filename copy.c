@@ -1,19 +1,18 @@
-#define _XOPEN_SOURCE 700
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include "clipboard.h"
 #include "wlr-data-control.h"
 #include "xmalloc.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-static void data_control_source_send_handler(void *data,
-        struct zwlr_data_control_source_v1 *data_src,
-        const char *mime_type,
-        int fd)
+static void
+data_control_source_send_handler(void *data,
+                                 struct zwlr_data_control_source_v1 *data_src,
+                                 const char *mime_type, int fd)
 {
-    copy_src *copy = (copy_src *) data;
+    copy_src *copy = (copy_src *)data;
 
     for (int i = 0; i < copy->num_mime_types; i++)
     {
@@ -25,18 +24,19 @@ static void data_control_source_send_handler(void *data,
     }
 }
 
-static void data_control_source_cancelled_handler(void *data,
-        struct zwlr_data_control_source_v1 *data_src)
+static void data_control_source_cancelled_handler(
+    void *data, struct zwlr_data_control_source_v1 *data_src)
 {
-    copy_src *copy = (copy_src *) data;
+    copy_src *copy = (copy_src *)data;
     copy->expired = true;
     zwlr_data_control_source_v1_destroy(data_src);
 }
 
-const struct zwlr_data_control_source_v1_listener zwlr_data_control_source_v1_listener =
+const struct zwlr_data_control_source_v1_listener
+    zwlr_data_control_source_v1_listener =
 {
-    .send = data_control_source_send_handler,
-    .cancelled = data_control_source_cancelled_handler
+        .send = data_control_source_send_handler,
+        .cancelled = data_control_source_cancelled_handler
 };
 
 static void offer_text(struct zwlr_data_control_source_v1 *data_src)
@@ -49,15 +49,16 @@ static void offer_text(struct zwlr_data_control_source_v1 *data_src)
 }
 
 int set_selection(void *data,
-        struct zwlr_data_control_manager_v1 *control_manager,
-        struct zwlr_data_control_device_v1 *device_manager)
+                  struct zwlr_data_control_manager_v1 *control_manager,
+                  struct zwlr_data_control_device_v1 *device_manager)
 {
-    copy_src *copy = (copy_src *) data;
+    copy_src *copy = (copy_src *)data;
     struct zwlr_data_control_source_v1 *data_src =
         zwlr_data_control_manager_v1_create_data_source(control_manager);
     copy->source = data_src;
 
-    zwlr_data_control_source_v1_add_listener(data_src, &zwlr_data_control_source_v1_listener, data);
+    zwlr_data_control_source_v1_add_listener(
+        data_src, &zwlr_data_control_source_v1_listener, data);
 
     for (int i = 0; i < copy->num_mime_types; i++)
     {
@@ -69,15 +70,16 @@ int set_selection(void *data,
 }
 
 int set_primary_selection(void *data,
-        struct zwlr_data_control_manager_v1 *control_manager,
-        struct zwlr_data_control_device_v1 *device_manager)
+                          struct zwlr_data_control_manager_v1 *control_manager,
+                          struct zwlr_data_control_device_v1 *device_manager)
 {
     struct zwlr_data_control_source_v1 *data_src =
         zwlr_data_control_manager_v1_create_data_source(control_manager);
 
-    copy_src *copy = (copy_src *) data;
+    copy_src *copy = (copy_src *)data;
 
-    zwlr_data_control_source_v1_add_listener(data_src, &zwlr_data_control_source_v1_listener, data);
+    zwlr_data_control_source_v1_add_listener(
+        data_src, &zwlr_data_control_source_v1_listener, data);
     if (copy->num_mime_types == 0)
     {
         offer_text(data_src);

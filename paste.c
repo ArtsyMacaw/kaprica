@@ -1,80 +1,86 @@
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 700
-#include <stdbool.h>
-#include <stdio.h>
-#include <poll.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
 #include "clipboard.h"
 #include "wlr-data-control.h"
 #include "xmalloc.h"
+#include <errno.h>
+#include <poll.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-static void data_control_offer_mime_handler(void *data,
-        struct zwlr_data_control_offer_v1 *data_offer,
-        const char *mime_type)
+static void
+data_control_offer_mime_handler(void *data,
+                                struct zwlr_data_control_offer_v1 *data_offer,
+                                const char *mime_type)
 {
-    paste_src *src = (paste_src *) data;
+    paste_src *src = (paste_src *)data;
     if (src->num_mime_types < (MAX_MIME_TYPES - 1))
     {
         src->mime_types[src->num_mime_types] = xstrdup(mime_type);
         src->num_mime_types++;
-    } else {
+    }
+    else
+    {
         fprintf(stderr, "Too many mime types to copy\n");
     }
 }
 
-const struct zwlr_data_control_offer_v1_listener zwlr_data_control_offer_v1_listener =
+const struct zwlr_data_control_offer_v1_listener
+    zwlr_data_control_offer_v1_listener =
 {
     .offer = data_control_offer_mime_handler
 };
 
-static void data_control_device_selection_handler(void *data,
-        struct zwlr_data_control_device_v1 *control_device,
-        struct zwlr_data_control_offer_v1 *data_offer)
+static void data_control_device_selection_handler(
+    void *data, struct zwlr_data_control_device_v1 *control_device,
+    struct zwlr_data_control_offer_v1 *data_offer)
 {
-    paste_src *src = (paste_src *) data;
+    paste_src *src = (paste_src *)data;
     src->buf = SELECTION;
 }
 
-static void data_control_device_primary_selection_handler(void *data,
-        struct zwlr_data_control_device_v1 *control_device,
-        struct zwlr_data_control_offer_v1 *data_offer)
+static void data_control_device_primary_selection_handler(
+    void *data, struct zwlr_data_control_device_v1 *control_device,
+    struct zwlr_data_control_offer_v1 *data_offer)
 {
-    paste_src *src = (paste_src *) data;
+    paste_src *src = (paste_src *)data;
     src->buf = PRIMARY;
 }
 
-static void data_control_device_finished_handler(void *data,
-        struct zwlr_data_control_device_v1 *control_device)
+static void data_control_device_finished_handler(
+    void *data, struct zwlr_data_control_device_v1 *control_device)
 {
     zwlr_data_control_device_v1_destroy(control_device);
 }
 
-static void data_control_device_data_offer_handler(void *data,
-        struct zwlr_data_control_device_v1 *control_device,
-        struct zwlr_data_control_offer_v1 *data_offer)
+static void data_control_device_data_offer_handler(
+    void *data, struct zwlr_data_control_device_v1 *control_device,
+    struct zwlr_data_control_offer_v1 *data_offer)
 {
-    paste_src *src = (paste_src *) data;
+    paste_src *src = (paste_src *)data;
     paste_clear(src);
     src->offer = data_offer;
-    zwlr_data_control_offer_v1_add_listener(data_offer,
-        &zwlr_data_control_offer_v1_listener, data);
+    zwlr_data_control_offer_v1_add_listener(
+        data_offer, &zwlr_data_control_offer_v1_listener, data);
 }
 
-const struct zwlr_data_control_device_v1_listener zwlr_data_control_device_v1_listener =
+const struct zwlr_data_control_device_v1_listener
+    zwlr_data_control_device_v1_listener =
 {
-    .data_offer = data_control_device_data_offer_handler,
-    .selection = data_control_device_selection_handler,
-    .primary_selection = data_control_device_primary_selection_handler,
-    .finished = data_control_device_finished_handler
+        .data_offer = data_control_device_data_offer_handler,
+        .selection = data_control_device_selection_handler,
+        .primary_selection = data_control_device_primary_selection_handler,
+        .finished = data_control_device_finished_handler
 };
 
-void watch_clipboard(struct zwlr_data_control_device_v1 *control_device, void *data)
+void watch_clipboard(struct zwlr_data_control_device_v1 *control_device,
+                     void *data)
 {
-    zwlr_data_control_device_v1_add_listener(control_device,
-            &zwlr_data_control_device_v1_listener, data);
+    zwlr_data_control_device_v1_add_listener(
+        control_device, &zwlr_data_control_device_v1_listener, data);
 }
 
 void get_selection(paste_src *src, struct wl_display *display)
@@ -88,14 +94,12 @@ void get_selection(paste_src *src, struct wl_display *display)
             exit(1);
         }
 
-        struct pollfd watch_for_data =
-        {
-            .fd = fds[0],
-            .events = POLLIN
-        };
+        struct pollfd watch_for_data = {.fd = fds[0], .events = POLLIN};
 
-        // Events need to be dispatched and flushed so the other client can recieve the fd
-        zwlr_data_control_offer_v1_receive(src->offer, src->mime_types[i], fds[1]);
+        // Events need to be dispatched and flushed so the other client can
+        // recieve the fd
+        zwlr_data_control_offer_v1_receive(src->offer, src->mime_types[i],
+                                           fds[1]);
         wl_display_dispatch_pending(display);
         wl_display_flush(display);
 
@@ -104,10 +108,12 @@ void get_selection(paste_src *src, struct wl_display *display)
 
         int wait_time;
         if (!strncmp("image/png", src->mime_types[i], strlen("image/png")) ||
-                !strncmp("image/jpeg", src->mime_types[i], strlen("image/jpeg")))
+            !strncmp("image/jpeg", src->mime_types[i], strlen("image/jpeg")))
         {
             wait_time = WAIT_TIME_LONG;
-        } else {
+        }
+        else
+        {
             wait_time = WAIT_TIME_SHORT;
         }
 
@@ -115,9 +121,11 @@ void get_selection(paste_src *src, struct wl_display *display)
         {
             void *sub_array = src->data[i] + src->len[i];
             int bytes_read = read(fds[0], sub_array, READ_SIZE);
+
+            /* If we get an error (-1) dont change anything */
             wait_time = (bytes_read > 0) ? WAIT_TIME_LONGEST : 0;
-            // If we get an error (-1) dont change the length
             src->len[i] += (bytes_read > 0) ? bytes_read : 0;
+
             if (src->len[i] >= (MAX_DATA_SIZE - (READ_SIZE * 2)))
             {
                 fprintf(stderr, "Source is too large to copy\n");
@@ -136,8 +144,9 @@ void get_selection(paste_src *src, struct wl_display *display)
         if (src->len[i] == 0)
         {
             src->invalid_data[i] = true;
-        } else {
-            src->invalid_data[i] = false;
+        }
+        else
+        {
             src->data[i] = xrealloc(src->data[i], src->len[i]);
         }
     }
@@ -146,10 +155,11 @@ void get_selection(paste_src *src, struct wl_display *display)
 paste_src *paste_init(void)
 {
     paste_src *src = xmalloc(sizeof(paste_src));
-    for (int i = 0; i <MAX_MIME_TYPES; i++)
+    for (int i = 0; i < MAX_MIME_TYPES; i++)
     {
         src->len[i] = 0;
         src->data[i] = NULL;
+        src->invalid_data[i] = false;
     }
     return src;
 }
@@ -168,8 +178,8 @@ void paste_clear(paste_src *src)
 {
     for (int i = 0; i < src->num_mime_types; i++)
     {
-        /* src->data isn't guaranteed to exist as get_selection may not have been called
-           thus we set it to NULL to be able to tell */
+        /* src->data isn't guaranteed to exist as get_selection may not have
+           been called thus we set it to NULL to be able to tell */
         if (src->data[i])
         {
             free(src->data[i]);

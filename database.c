@@ -1,27 +1,28 @@
 #define _POSIX_C_SOURCE 200112L
-#include <time.h>
-#include <stdint.h>
-#include <sqlite3.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "clipboard.h"
 #include "database.h"
+#include "clipboard.h"
 #include "xmalloc.h"
+#include <sqlite3.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 /* Every statement we intend to use */
 static sqlite3_stmt *create_main_table, *create_content_table,
-                    *insert_source_entry, *insert_source_content,
-                    *delete_old_source_entries, *pragma_foreign_keys,
-                    *select_latest_source, *select_source;
+    *insert_source_entry, *insert_source_content, *delete_old_source_entries,
+    *pragma_foreign_keys, *select_latest_source, *select_source;
 
 #define FIVE_HUNDRED_MS 5
-struct timespec one_hundred_ms =
-{
-    .tv_nsec = 100000000
-};
+struct timespec one_hundred_ms = {.tv_nsec = 100000000};
 
-enum datatype {BLOB, INT, TEXT};
+enum datatype
+{
+    BLOB,
+    INT,
+    TEXT
+};
 
 /* SQL Parameters && iCol values */
 #define ID_BINDING 1
@@ -31,7 +32,7 @@ enum datatype {BLOB, INT, TEXT};
 #define DATA_BINDING 3
 #define MIME_TYPE_BINDING 4
 
-void prepare_statement(sqlite3 *db, const char *s, sqlite3_stmt **stmt)
+static void prepare_statement(sqlite3 *db, const char *s, sqlite3_stmt **stmt)
 {
     int ret = sqlite3_prepare_v2(db, s, -1, stmt, NULL);
     if (ret != SQLITE_OK)
@@ -43,10 +44,9 @@ void prepare_statement(sqlite3 *db, const char *s, sqlite3_stmt **stmt)
 
 /* Only statements necessary to create and initialize
  * the database if it did not already exist */
-void prepare_bootstrap_statements(sqlite3 *db)
+static void prepare_bootstrap_statements(sqlite3 *db)
 {
-    const char foreign_keys[] =
-        "PRAGMA foreign_keys = ON;";
+    const char foreign_keys[] = "PRAGMA foreign_keys = ON;";
     prepare_statement(db, foreign_keys, &pragma_foreign_keys);
 
     const char main_table[] =
@@ -64,16 +64,14 @@ void prepare_bootstrap_statements(sqlite3 *db)
         "    FOREIGN KEY (entry) REFERENCES clipboard_history(history_id)"
         "       ON DELETE CASCADE);";
     prepare_statement(db, content_table, &create_content_table);
-
 }
 
 /* Preparing statements is relatively costly resource wise
  * so we frontload all of them at the start and only
  * finalize them when the program is stopped */
-void prepare_all_statements(sqlite3 *db)
+static void prepare_all_statements(sqlite3 *db)
 {
-    const char source_entry[] =
-        "INSERT INTO clipboard_history DEFAULT VALUES;";
+    const char source_entry[] = "INSERT INTO clipboard_history DEFAULT VALUES;";
     prepare_statement(db, source_entry, &insert_source_entry);
 
     const char source_content[] =
@@ -86,19 +84,17 @@ void prepare_all_statements(sqlite3 *db)
         "    WHERE timestamp < (date('now', ?));";
     prepare_statement(db, remove_old_source_entry, &delete_old_source_entries);
 
-    const char get_latest_source[] =
-        "SELECT history_id FROM clipboard_history"
-        "    ORDER BY timestamp DESC"
-        "    LIMIT 1;";
+    const char get_latest_source[] = "SELECT history_id FROM clipboard_history"
+                                     "    ORDER BY timestamp DESC"
+                                     "    LIMIT 1;";
     prepare_statement(db, get_latest_source, &select_latest_source);
 
-    const char get_source[] =
-        "SELECT * FROM content"
-        "    WHERE entry = ?1;";
+    const char get_source[] = "SELECT * FROM content"
+                              "    WHERE entry = ?1;";
     prepare_statement(db, get_source, &select_source);
 }
 
-int execute_statement(sqlite3_stmt *stmt)
+static int execute_statement(sqlite3_stmt *stmt)
 {
     int ret, time_passed;
 
@@ -123,23 +119,24 @@ int execute_statement(sqlite3_stmt *stmt)
     return ret;
 }
 
-void bind_statement(sqlite3_stmt *stmt, uint16_t literal,
-        void *data, uint16_t length, enum datatype type)
+static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
+                           uint16_t length, enum datatype type)
 {
     int ret;
     switch (type)
     {
-        case INT:
-            ret = sqlite3_bind_int(stmt, literal, *(int *) data);
-            break;
-        case BLOB:
-            ret = sqlite3_bind_blob(stmt, literal, data, length, SQLITE_STATIC);
-            break;
-        case TEXT:
-            ret = sqlite3_bind_text(stmt, literal, (char *) data, length, SQLITE_STATIC);
-            break;
+    case INT:
+        ret = sqlite3_bind_int(stmt, literal, *(int *)data);
+        break;
+    case BLOB:
+        ret = sqlite3_bind_blob(stmt, literal, data, length, SQLITE_STATIC);
+        break;
+    case TEXT:
+        ret = sqlite3_bind_text(stmt, literal, (char *)data, length,
+                                SQLITE_STATIC);
+        break;
     }
-    
+
     if (ret == SQLITE_NOMEM)
     {
         fprintf(stderr, "Failed to allocate memory\n");
@@ -161,10 +158,12 @@ void database_insert_source(sqlite3 *db, copy_src *src)
     for (int i = 0; i < src->num_mime_types; i++)
     {
         bind_statement(insert_source_content, ENTRY_BINDING, &rowid, 0, INT);
-        bind_statement(insert_source_content, LENGTH_BINDING, &src->len[i], 0, INT);
-        bind_statement(insert_source_content, DATA_BINDING, src->data[i], src->len[i], BLOB);
-        bind_statement(insert_source_content, MIME_TYPE_BINDING, src->mime_types[i],
-                strlen(src->mime_types[i]), TEXT);
+        bind_statement(insert_source_content, LENGTH_BINDING, &src->len[i], 0,
+                       INT);
+        bind_statement(insert_source_content, DATA_BINDING, src->data[i],
+                       src->len[i], BLOB);
+        bind_statement(insert_source_content, MIME_TYPE_BINDING,
+                       src->mime_types[i], strlen(src->mime_types[i]), TEXT);
 
         execute_statement(insert_source_content);
 
@@ -176,7 +175,7 @@ void database_insert_source(sqlite3 *db, copy_src *src)
 uint32_t database_get_latest_source_id(sqlite3 *db)
 {
     execute_statement(select_latest_source);
-    
+
     int ret = sqlite3_column_int(select_latest_source, 0);
     sqlite3_reset(select_latest_source);
     return ret;
@@ -187,26 +186,24 @@ void database_get_source(sqlite3 *db, uint32_t id, copy_src *src)
     bind_statement(select_source, ID_BINDING, &id, 0, INT);
 
     while (execute_statement(select_source) != SQLITE_DONE &&
-            src->num_mime_types < MAX_MIME_TYPES)
+           src->num_mime_types < MAX_MIME_TYPES)
     {
         src->len[src->num_mime_types] =
             sqlite3_column_int(select_source, (LENGTH_BINDING - 1));
 
-        src->data[src->num_mime_types] =
-            xmalloc(src->len[src->num_mime_types]);
+        src->data[src->num_mime_types] = xmalloc(src->len[src->num_mime_types]);
         const void *tmp_blob =
-            sqlite3_column_blob(select_source, (DATA_BINDING -1 ));
+            sqlite3_column_blob(select_source, (DATA_BINDING - 1));
         if (!tmp_blob)
         {
             fprintf(stderr, "Failed to allocate memory\n");
             exit(1);
         }
-        memcpy(src->data[src->num_mime_types],
-                tmp_blob,
-                src->len[src->num_mime_types]);
+        memcpy(src->data[src->num_mime_types], tmp_blob,
+               src->len[src->num_mime_types]);
 
         const char *tmp_text =
-            (char *) sqlite3_column_text(select_source, (MIME_TYPE_BINDING - 1));
+            (char *)sqlite3_column_text(select_source, (MIME_TYPE_BINDING - 1));
         if (!tmp_text)
         {
             fprintf(stderr, "Failed to allocate memory\n");
@@ -250,7 +247,8 @@ int database_destroy_old_entries(sqlite3 *db, uint32_t days)
     char buffer[sizeof(uint32_t) + strlen("- days")];
     snprintf(buffer, sizeof(buffer), "-%d days", days);
 
-    bind_statement(delete_old_source_entries, DATE_BINDING, buffer, strlen(buffer), TEXT);
+    bind_statement(delete_old_source_entries, DATE_BINDING, buffer,
+                   strlen(buffer), TEXT);
     execute_statement(delete_old_source_entries);
     sqlite3_reset(delete_old_source_entries);
     sqlite3_clear_bindings(delete_old_source_entries);
