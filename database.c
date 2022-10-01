@@ -81,7 +81,7 @@ static void prepare_all_statements(sqlite3 *db)
 
     const char remove_old_source_entry[] =
         "DELETE FROM clipboard_history"
-        "    WHERE timestamp < (date('now', ?));";
+        "    WHERE timestamp < (date('now', ? || ' days'));";
     prepare_statement(db, remove_old_source_entry, &delete_old_source_entries);
 
     const char get_latest_source[] = "SELECT history_id FROM clipboard_history"
@@ -240,15 +240,9 @@ sqlite3 *database_init(void)
     return db;
 }
 
-int database_destroy_old_entries(sqlite3 *db, uint32_t days)
+uint32_t database_destroy_old_entries(sqlite3 *db, int32_t days)
 {
-    /* Manually create the date string as we can't insert an
-     * integer into a string constant */
-    char buffer[sizeof(uint32_t) + strlen("- days")];
-    snprintf(buffer, sizeof(buffer), "-%d days", days);
-
-    bind_statement(delete_old_source_entries, DATE_BINDING, buffer,
-                   strlen(buffer), TEXT);
+    bind_statement(delete_old_source_entries, DATE_BINDING, &days, 0, INT);
     execute_statement(delete_old_source_entries);
     sqlite3_reset(delete_old_source_entries);
     sqlite3_clear_bindings(delete_old_source_entries);

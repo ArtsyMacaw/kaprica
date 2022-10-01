@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/signalfd.h>
+#include <sys/timerfd.h>
+#include <time.h>
 #include <unistd.h>
 #include "clipboard.h"
 #include "database.h"
@@ -90,10 +92,16 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    int clean_up_entries = timerfd_create(CLOCK_MONOTONIC, 0);
+    struct timespec five_minutes = {.tv_sec = 300};
+    struct itimerspec timer = {.it_interval = five_minutes, .it_value = five_minutes};
+    timerfd_settime(clean_up_entries, 0, &timer, NULL);
+
     int watch_signals = signalfd(-1, &mask, 0);
     int display_fd = wl_display_get_fd(display);
     struct pollfd wait_for_events[] = {{.fd = display_fd, .events = POLLIN},
-                                       {.fd = watch_signals, .events = POLLIN}};
+                                       {.fd = watch_signals, .events = POLLIN},
+                                       {.fd = clean_up_entries, .events = POLLIN}};
 
     struct wl_registry *registry = wl_display_get_registry(display);
     wl_registry_add_listener(registry, &registry_listener, NULL);
@@ -158,8 +166,7 @@ int main(int argc, char *argv[])
             prepare_read(display);
         }
 
-        // Implement timerfd to clean up old database entries
-        if (poll(wait_for_events, 2, -1) < 0)
+        if (poll(wait_for_events, 3, -1) < 0)
         {
             fprintf(stderr, "Poll failed\n");
             wl_display_cancel_read(display);
@@ -173,12 +180,21 @@ int main(int argc, char *argv[])
             break;
         }
 
+        if (poll(&wait_for_events[2], 1, 0) > 0)
+        {
+            /* Read just to clear the buffer */
+            uint64_t tmp;
+            read(clean_up_entries, &tmp, sizeof(uint64_t));
+            printf("Removed %d old entries\n", database_destroy_old_entries(db, -30));
+        }
+
         wl_display_read_events(display);
     }
 
     /* Cleanup that shouldn't be necessary but helps analyze with valgrind */
     database_destroy(db);
     close(watch_signals);
+    close(clean_up_entries);
     copy_destroy(copy);
     paste_destroy(paste);
     zwlr_data_control_device_v1_destroy(dmng);
