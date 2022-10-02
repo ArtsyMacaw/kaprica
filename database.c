@@ -149,13 +149,13 @@ static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
     }
 }
 
-void database_insert_source(sqlite3 *db, copy_src *src)
+void database_insert_source(sqlite3 *db, source_buffer *src)
 {
     execute_statement(insert_source_entry);
     sqlite3_reset(insert_source_entry);
 
     uint32_t rowid = sqlite3_last_insert_rowid(db);
-    for (int i = 0; i < src->num_mime_types; i++)
+    for (int i = 0; i < src->num_types; i++)
     {
         bind_statement(insert_source_content, ENTRY_BINDING, &rowid, 0, INT);
         bind_statement(insert_source_content, LENGTH_BINDING, &src->len[i], 0,
@@ -163,7 +163,7 @@ void database_insert_source(sqlite3 *db, copy_src *src)
         bind_statement(insert_source_content, DATA_BINDING, src->data[i],
                        src->len[i], BLOB);
         bind_statement(insert_source_content, MIME_TYPE_BINDING,
-                       src->mime_types[i], strlen(src->mime_types[i]), TEXT);
+                       src->types[i].type, strlen(src->types[i].type), TEXT);
 
         execute_statement(insert_source_content);
 
@@ -181,17 +181,17 @@ uint32_t database_get_latest_source_id(sqlite3 *db)
     return ret;
 }
 
-void database_get_source(sqlite3 *db, uint32_t id, copy_src *src)
+void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
 {
     bind_statement(select_source, ID_BINDING, &id, 0, INT);
 
     while (execute_statement(select_source) != SQLITE_DONE &&
-           src->num_mime_types < MAX_MIME_TYPES)
+           src->num_types < MAX_MIME_TYPES)
     {
-        src->len[src->num_mime_types] =
+        src->len[src->num_types] =
             sqlite3_column_int(select_source, (LENGTH_BINDING - 1));
 
-        src->data[src->num_mime_types] = xmalloc(src->len[src->num_mime_types]);
+        src->data[src->num_types] = xmalloc(src->len[src->num_types]);
         const void *tmp_blob =
             sqlite3_column_blob(select_source, (DATA_BINDING - 1));
         if (!tmp_blob)
@@ -199,8 +199,8 @@ void database_get_source(sqlite3 *db, uint32_t id, copy_src *src)
             fprintf(stderr, "Failed to allocate memory\n");
             exit(1);
         }
-        memcpy(src->data[src->num_mime_types], tmp_blob,
-               src->len[src->num_mime_types]);
+        memcpy(src->data[src->num_types], tmp_blob,
+               src->len[src->num_types]);
 
         const char *tmp_text =
             (char *)sqlite3_column_text(select_source, (MIME_TYPE_BINDING - 1));
@@ -209,9 +209,10 @@ void database_get_source(sqlite3 *db, uint32_t id, copy_src *src)
             fprintf(stderr, "Failed to allocate memory\n");
             exit(1);
         }
-        src->mime_types[src->num_mime_types] = xstrdup(tmp_text);
+        src->types[src->num_types].type = xstrdup(tmp_text);
+        src->types[src->num_types].pos = src->num_types;
 
-        src->num_mime_types++;
+        src->num_types++;
     }
 
     sqlite3_reset(select_source);

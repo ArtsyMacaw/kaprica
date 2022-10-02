@@ -5,6 +5,7 @@
 #include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -17,11 +18,15 @@ data_control_offer_mime_handler(void *data,
                                 struct zwlr_data_control_offer_v1 *data_offer,
                                 const char *mime_type)
 {
-    paste_src *src = (paste_src *)data;
-    if (src->num_mime_types < (MAX_MIME_TYPES - 1))
+    clipboard *clip = (clipboard *)data;
+    offer_buffer *ofr = clip->selection_o;
+
+    if (ofr->num_types < (MAX_MIME_TYPES - 1))
     {
-        src->mime_types[src->num_mime_types] = xstrdup(mime_type);
-        src->num_mime_types++;
+        uint8_t index = ofr->num_types;
+        ofr->types[index].type = xstrdup(mime_type);
+        ofr->types[index].pos = index;
+        ofr->num_types++;
     }
     else
     {
@@ -39,16 +44,16 @@ static void data_control_device_selection_handler(
     void *data, struct zwlr_data_control_device_v1 *control_device,
     struct zwlr_data_control_offer_v1 *data_offer)
 {
-    paste_src *src = (paste_src *)data;
-    src->buf = SELECTION;
+    clipboard *clip = (clipboard *)data;
+    clip->selection_o->buf = SELECTION;
 }
 
 static void data_control_device_primary_selection_handler(
     void *data, struct zwlr_data_control_device_v1 *control_device,
     struct zwlr_data_control_offer_v1 *data_offer)
 {
-    paste_src *src = (paste_src *)data;
-    src->buf = PRIMARY;
+    clipboard *clip = (clipboard *)data;
+    clip->selection_o->buf = PRIMARY;
 }
 
 static void data_control_device_finished_handler(
@@ -61,9 +66,9 @@ static void data_control_device_data_offer_handler(
     void *data, struct zwlr_data_control_device_v1 *control_device,
     struct zwlr_data_control_offer_v1 *data_offer)
 {
-    paste_src *src = (paste_src *)data;
-    paste_clear(src);
-    src->offer = data_offer;
+    clipboard *clip = (clipboard *)data;
+    offer_clear(clip->selection_o);
+    clip->selection_o->offer = data_offer;
     zwlr_data_control_offer_v1_add_listener(
         data_offer, &zwlr_data_control_offer_v1_listener, data);
 }
@@ -77,16 +82,16 @@ const struct zwlr_data_control_device_v1_listener
         .finished = data_control_device_finished_handler
 };
 
-void watch_clipboard(struct zwlr_data_control_device_v1 *control_device,
-                     void *data)
+void clip_watch(clipboard *clip)
 {
     zwlr_data_control_device_v1_add_listener(
-        control_device, &zwlr_data_control_device_v1_listener, data);
+        clip->dmng, &zwlr_data_control_device_v1_listener, clip);
 }
 
-void get_selection(paste_src *src, struct wl_display *display)
+void clip_get_selection(clipboard *clip)
 {
-    for (int i = 0; i < src->num_mime_types; i++)
+    offer_buffer *ofr = clip->selection_o;
+    for (int i = 0; i < ofr->num_types; i++)
     {
         int fds[2];
         if (pipe(fds) == -1)
@@ -99,17 +104,17 @@ void get_selection(paste_src *src, struct wl_display *display)
 
         /* Events need to be dispatched and flushed so the other client
          * can recieve the fd */
-        zwlr_data_control_offer_v1_receive(src->offer, src->mime_types[i],
+        zwlr_data_control_offer_v1_receive(ofr->offer, ofr->types[i].type,
                                            fds[1]);
-        wl_display_dispatch_pending(display);
-        wl_display_flush(display);
+        wl_display_dispatch_pending(clip->display);
+        wl_display_flush(clip->display);
 
         /* Allocate max size for simplicity's sake */
-        src->data[i] = xmalloc(MAX_DATA_SIZE);
+        ofr->data[i] = xmalloc(MAX_DATA_SIZE);
 
         int wait_time;
-        if (!strncmp("image/png", src->mime_types[i], strlen("image/png")) ||
-            !strncmp("image/jpeg", src->mime_types[i], strlen("image/jpeg")))
+        if (!strncmp("image/png", ofr->types[i].type, strlen("image/png")) ||
+            !strncmp("image/jpeg", ofr->types[i].type, strlen("image/jpeg")))
         {
             wait_time = WAIT_TIME_LONG;
         }
@@ -120,17 +125,17 @@ void get_selection(paste_src *src, struct wl_display *display)
 
         while (poll(&watch_for_data, 1, wait_time) > 0)
         {
-            void *sub_array = src->data[i] + src->len[i];
+            void *sub_array = ofr->data[i] + ofr->len[i];
             int bytes_read = read(fds[0], sub_array, READ_SIZE);
 
             /* If we get an error (-1) dont change anything */
             wait_time = (bytes_read > 0) ? WAIT_TIME_LONGEST : 0;
-            src->len[i] += (bytes_read > 0) ? bytes_read : 0;
+            ofr->len[i] += (bytes_read > 0) ? bytes_read : 0;
 
-            if (src->len[i] >= (MAX_DATA_SIZE - (READ_SIZE * 2)))
+            if (ofr->len[i] >= (MAX_DATA_SIZE - (READ_SIZE * 2)))
             {
                 fprintf(stderr, "Source is too large to copy\n");
-                src->invalid_data[i] = true;
+                ofr->invalid_data[i] = true;
                 break;
             }
             if (bytes_read < READ_SIZE)
@@ -142,54 +147,55 @@ void get_selection(paste_src *src, struct wl_display *display)
         close(fds[0]);
         close(fds[1]);
 
-        if (src->len[i] == 0)
+        if (ofr->len[i] == 0)
         {
-            src->invalid_data[i] = true;
+            ofr->invalid_data[i] = true;
         }
         else
         {
-            src->data[i] = xrealloc(src->data[i], src->len[i]);
+            ofr->data[i] = xrealloc(ofr->data[i], ofr->len[i]);
         }
     }
 }
 
-paste_src *paste_init(void)
+offer_buffer *offer_init(void)
 {
-    paste_src *src = xmalloc(sizeof(paste_src));
+    offer_buffer *ofr = xmalloc(sizeof(offer_buffer));
     for (int i = 0; i < MAX_MIME_TYPES; i++)
     {
-        src->len[i] = 0;
-        src->data[i] = NULL;
-        src->invalid_data[i] = false;
+        ofr->len[i] = 0;
+        ofr->data[i] = NULL;
+        ofr->invalid_data[i] = false;
     }
-    return src;
+    return ofr;
 }
 
-void paste_destroy(paste_src *src)
+void offer_destroy(offer_buffer *ofr)
 {
-    for (int i = 0; i < src->num_mime_types; i++)
+    for (int i = 0; i < ofr->num_types; i++)
     {
-        free(src->data[i]);
-        free(src->mime_types[i]);
+        free(ofr->data[i]);
+        free(ofr->types[i].type);
     }
-    free(src);
+    free(ofr);
 }
 
-void paste_clear(paste_src *src)
+void offer_clear(offer_buffer *ofr)
 {
-    for (int i = 0; i < src->num_mime_types; i++)
+    for (int i = 0; i < ofr->num_types; i++)
     {
         /* src->data isn't guaranteed to exist as get_selection may not have
            been called thus we set it to NULL to be able to tell */
-        if (src->data[i])
+        if (ofr->data[i])
         {
-            free(src->data[i]);
-            src->data[i] = NULL;
+            free(ofr->data[i]);
+            ofr->data[i] = NULL;
         }
-        free(src->mime_types[i]);
-        src->len[i] = 0;
-        src->invalid_data[i] = false;
+        free(ofr->types[i].type);
+        ofr->types[i].pos = 0;
+        ofr->len[i] = 0;
+        ofr->invalid_data[i] = false;
     }
-    src->num_mime_types = 0;
-    src->offer = NULL;
+    ofr->num_types = 0;
+    ofr->offer = NULL;
 }

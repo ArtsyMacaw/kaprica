@@ -45,6 +45,7 @@ lib = static_library(
   glue,
   header,
   'clipboard.h',
+  'clipboard.c',
   'copy.c',
   'paste.c',
   'database.c',
@@ -55,4 +56,3 @@ lib = static_library(
 )
 
 executable('kapricad', 'kapricad.c', link_with: lib, dependencies: wayland)
-executable('kaprica', 'kaprica.c', link_with: lib, dependencies: wayland)

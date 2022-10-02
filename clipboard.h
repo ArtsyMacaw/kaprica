@@ -28,43 +28,57 @@ typedef enum
     PRIMARY
 } clipboard_buffer;
 
+/* Mime type and where its data is located */
+typedef struct
+{
+    char *type;
+    uint16_t pos;
+} mime_type;
+
+/* Buffer not managed by us */
 typedef struct
 {
     void *data[MAX_MIME_TYPES];
-    char *mime_types[MAX_MIME_TYPES];
+    mime_type types[MAX_MIME_TYPES];
     uint32_t len[MAX_MIME_TYPES];
     bool invalid_data[MAX_MIME_TYPES];
-    bool expired;
-    uint32_t num_mime_types;
+    uint32_t num_types;
     struct zwlr_data_control_offer_v1 *offer;
     clipboard_buffer buf;
-} paste_src;
+} offer_buffer;
 
-void watch_clipboard(struct zwlr_data_control_device_v1 *control_device,
-                     void *data);
-void get_selection(paste_src *src, struct wl_display *display);
-paste_src *paste_init(void);
-void paste_destroy(paste_src *src);
-void paste_clear(paste_src *src);
-
+/* Buffer managed by us */
 typedef struct
 {
     void *data[MAX_MIME_TYPES];
-    char *mime_types[MAX_MIME_TYPES];
+    mime_type types[MAX_MIME_TYPES];
     uint32_t len[MAX_MIME_TYPES];
     bool expired;
-    uint32_t num_mime_types;
+    uint32_t num_types;
     struct zwlr_data_control_source_v1 *source;
-} copy_src;
+} source_buffer;
 
-void set_selection(void *data,
-                  struct zwlr_data_control_manager_v1 *control_manager,
-                  struct zwlr_data_control_device_v1 *device_manager);
-void set_primary_selection(void *data,
-                          struct zwlr_data_control_manager_v1 *control_manager,
-                          struct zwlr_data_control_device_v1 *device_manager);
-copy_src *copy_init(void);
-void copy_destroy(copy_src *src);
-void copy_clear(copy_src *src);
+typedef struct
+{
+    source_buffer *selection_s;
+    offer_buffer *selection_o;
+    struct wl_display *display;
+    struct wl_seat *seat;
+    struct zwlr_data_control_manager_v1 *cmng;
+    struct zwlr_data_control_device_v1 *dmng;
+} clipboard;
+
+clipboard *clip_init(void);
+void clip_destroy(clipboard *clip);
+void clip_watch(clipboard *clip);
+void clip_get_selection(clipboard *clip);
+void clip_set_selection(clipboard *clip);
+void clip_sync_buffers(clipboard *clip);
+offer_buffer *offer_init(void);
+void offer_clear(offer_buffer *ofr);
+void offer_destroy(offer_buffer *ofr);
+source_buffer *source_init(void);
+void source_clear(source_buffer *src);
+void source_destroy(source_buffer *src);
 
 #endif

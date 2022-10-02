@@ -7,19 +7,21 @@
 #include "clipboard.h"
 #include "wlr-data-control.h"
 #include "xmalloc.h"
+#include "detection.h"
 
 static void
 data_control_source_send_handler(void *data,
                                  struct zwlr_data_control_source_v1 *data_src,
                                  const char *mime_type, int fd)
 {
-    copy_src *copy = (copy_src *)data;
+    clipboard *clip = (clipboard *)data;
+    source_buffer *src = clip->selection_s;
 
-    for (int i = 0; i < copy->num_mime_types; i++)
+    for (int i = 0; i < src->num_types; i++)
     {
-        if (!strcmp(mime_type, copy->mime_types[i]))
+        if (!strcmp(mime_type, src->types[i].type))
         {
-            write(fd, copy->data[i], copy->len[i]);
+            write(fd, src->data[i], src->len[i]);
             close(fd);
         }
     }
@@ -28,8 +30,8 @@ data_control_source_send_handler(void *data,
 static void data_control_source_cancelled_handler(
     void *data, struct zwlr_data_control_source_v1 *data_src)
 {
-    copy_src *copy = (copy_src *)data;
-    copy->expired = true;
+    clipboard *clip = (clipboard *)data;
+    clip->selection_s->expired = true;
     zwlr_data_control_source_v1_destroy(data_src);
 }
 
@@ -40,81 +42,51 @@ const struct zwlr_data_control_source_v1_listener
         .cancelled = data_control_source_cancelled_handler
 };
 
-static void offer_text(struct zwlr_data_control_source_v1 *data_src)
+void clip_set_selection(clipboard *clip)
 {
-    zwlr_data_control_source_v1_offer(data_src, "TEXT");
-    zwlr_data_control_source_v1_offer(data_src, "STRING");
-    zwlr_data_control_source_v1_offer(data_src, "UTF8_STRING");
-    zwlr_data_control_source_v1_offer(data_src, "text/plain");
-    zwlr_data_control_source_v1_offer(data_src, "text/plain;charset=utf8");
-}
-
-void set_selection(void *data,
-                  struct zwlr_data_control_manager_v1 *control_manager,
-                  struct zwlr_data_control_device_v1 *device_manager)
-{
-    copy_src *copy = (copy_src *)data;
+    source_buffer *src = clip->selection_s;
     struct zwlr_data_control_source_v1 *data_src =
-        zwlr_data_control_manager_v1_create_data_source(control_manager);
-    copy->source = data_src;
+        zwlr_data_control_manager_v1_create_data_source(clip->cmng);
+    src->source = data_src;
 
     zwlr_data_control_source_v1_add_listener(
-        data_src, &zwlr_data_control_source_v1_listener, data);
-
-    for (int i = 0; i < copy->num_mime_types; i++)
+        data_src, &zwlr_data_control_source_v1_listener, clip);
+    
+    for (int i = 0; i < src->num_types; i++)
     {
-        zwlr_data_control_source_v1_offer(data_src, copy->mime_types[i]);
+        zwlr_data_control_source_v1_offer(data_src, src->types[i].type);
     }
 
-    zwlr_data_control_device_v1_set_selection(device_manager, data_src);
+    zwlr_data_control_device_v1_set_selection(clip->dmng, data_src);
 }
 
-void set_primary_selection(void *data,
-                          struct zwlr_data_control_manager_v1 *control_manager,
-                          struct zwlr_data_control_device_v1 *device_manager)
+source_buffer *source_init(void)
 {
-    struct zwlr_data_control_source_v1 *data_src =
-        zwlr_data_control_manager_v1_create_data_source(control_manager);
-
-    copy_src *copy = (copy_src *)data;
-
-    zwlr_data_control_source_v1_add_listener(
-        data_src, &zwlr_data_control_source_v1_listener, data);
-    if (copy->num_mime_types == 0)
-    {
-        offer_text(data_src);
-    }
-
-    zwlr_data_control_device_v1_set_primary_selection(device_manager, data_src);
-}
-
-copy_src *copy_init(void)
-{
-    copy_src *src = xmalloc(sizeof(copy_src));
+    source_buffer *src = xmalloc(sizeof(source_buffer));
     src->expired = false;
-    src->num_mime_types = 0;
+    src->num_types = 0;
     return src;
 }
 
-void copy_destroy(copy_src *src)
+void source_destroy(source_buffer *src)
 {
-    for (int i = 0; i < src->num_mime_types; i++)
+    for (int i = 0; i < src->num_types; i++)
     {
         free(src->data[i]);
-        free(src->mime_types[i]);
+        free(src->types[i].type);
     }
     zwlr_data_control_source_v1_destroy(src->source);
     free(src);
 }
 
-void copy_clear(copy_src *src)
+void source_clear(source_buffer *src)
 {
-    for (int i = 0; i < src->num_mime_types; i++)
+    for (int i = 0; i < src->num_types; i++)
     {
         free(src->data[i]);
-        free(src->mime_types[i]);
+        free(src->types[i].type);
         src->len[i] = 0;
     }
-    src->num_mime_types = 0;
+    src->num_types = 0;
     src->expired = false;
 }
