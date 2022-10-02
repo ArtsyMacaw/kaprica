@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 700
-#include <stdint.h>
+#include <wayland-client.h>
 #include <poll.h>
 #include <signal.h>
 #include <sqlite3.h>
@@ -17,6 +17,9 @@
 #include "database.h"
 #include "wlr-data-control.h"
 #include "xmalloc.h"
+
+#define TIMER_EVENT 2
+#define SIGNAL_EVENT 1
 
 static struct zwlr_data_control_manager_v1 *cmng = NULL;
 static struct wl_seat *seat = NULL;
@@ -94,14 +97,16 @@ int main(int argc, char *argv[])
 
     int clean_up_entries = timerfd_create(CLOCK_MONOTONIC, 0);
     struct timespec five_minutes = {.tv_sec = 300};
-    struct itimerspec timer = {.it_interval = five_minutes, .it_value = five_minutes};
+    struct itimerspec timer = {.it_interval = five_minutes,
+                               .it_value = five_minutes};
     timerfd_settime(clean_up_entries, 0, &timer, NULL);
 
     int watch_signals = signalfd(-1, &mask, 0);
     int display_fd = wl_display_get_fd(display);
-    struct pollfd wait_for_events[] = {{.fd = display_fd, .events = POLLIN},
-                                       {.fd = watch_signals, .events = POLLIN},
-                                       {.fd = clean_up_entries, .events = POLLIN}};
+    struct pollfd wait_for_events[] = {
+        {.fd = display_fd, .events = POLLIN},
+        {.fd = watch_signals, .events = POLLIN},
+        {.fd = clean_up_entries, .events = POLLIN}};
 
     struct wl_registry *registry = wl_display_get_registry(display);
     wl_registry_add_listener(registry, &registry_listener, NULL);
@@ -173,19 +178,20 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        if (poll(&wait_for_events[1], 1, 0) > 0)
+        if (poll(&wait_for_events[SIGNAL_EVENT], 1, 0) > 0)
         {
             printf("Stopping Kaprica...\n");
             wl_display_cancel_read(display);
             break;
         }
 
-        if (poll(&wait_for_events[2], 1, 0) > 0)
+        if (poll(&wait_for_events[TIMER_EVENT], 1, 0) > 0)
         {
             /* Read just to clear the buffer */
             uint64_t tmp;
             read(clean_up_entries, &tmp, sizeof(uint64_t));
-            printf("Removed %d old entries\n", database_destroy_old_entries(db, -30));
+            printf("Removed %d old entries\n",
+                   database_destroy_old_entries(db, -30));
         }
 
         wl_display_read_events(display);
