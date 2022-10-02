@@ -9,6 +9,15 @@ project(
   ]
 )
 
+add_project_arguments(
+  [
+    '-Wno-unused-parameter',
+    '-Wno-unused-result',
+    '-Wno-missing-braces'
+  ],
+  language: 'c'
+)
+
 cc = meson.get_compiler('c')
 
 sql = dependency('sqlite3', version: '>=3.6.19')
@@ -42,7 +51,8 @@ lib = static_library(
   'database.h',
   'xmalloc.h',
   'xmalloc.c',
-  dependencies: [wayland, sql]
+  dependencies: [wayland, sql, magic]
 )
 
-executable('kaprica', 'kapricad.c', link_with: lib, dependencies: [wayland, magic])
+executable('kapricad', 'kapricad.c', link_with: lib, dependencies: wayland)
+executable('kaprica', 'kaprica.c', link_with: lib, dependencies: wayland)
