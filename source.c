@@ -7,7 +7,6 @@
 #include "clipboard.h"
 #include "wlr-data-control.h"
 #include "xmalloc.h"
-#include "detection.h"
 
 static void
 data_control_source_send_handler(void *data,
@@ -23,6 +22,11 @@ data_control_source_send_handler(void *data,
         {
             write(fd, src->data[i], src->len[i]);
             close(fd);
+
+            if (src->offer_once)
+            {
+                clip_clear_selection(clip);
+            }
         }
     }
 }
@@ -42,6 +46,11 @@ const struct zwlr_data_control_source_v1_listener
         .cancelled = data_control_source_cancelled_handler
 };
 
+void clip_clear_selection(clipboard *clip)
+{
+    zwlr_data_control_device_v1_set_selection(clip->dmng, NULL);
+}
+
 void clip_set_selection(clipboard *clip)
 {
     source_buffer *src = clip->selection_s;
@@ -51,7 +60,7 @@ void clip_set_selection(clipboard *clip)
 
     zwlr_data_control_source_v1_add_listener(
         data_src, &zwlr_data_control_source_v1_listener, clip);
-    
+
     for (int i = 0; i < src->num_types; i++)
     {
         zwlr_data_control_source_v1_offer(data_src, src->types[i].type);
@@ -63,6 +72,7 @@ void clip_set_selection(clipboard *clip)
 source_buffer *source_init(void)
 {
     source_buffer *src = xmalloc(sizeof(source_buffer));
+    src->offer_once = false;
     src->expired = false;
     src->num_types = 0;
     return src;

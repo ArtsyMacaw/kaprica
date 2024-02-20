@@ -16,7 +16,7 @@
 
 /* By default wait 100ms for the client to start writing data
  for images and other types that may take longer we wait a second
- If we succesfully received data we can safetly wait for a while */
+ If we succesfully received data we can safely wait for a while */
 #define WAIT_TIME_SHORT 100
 #define WAIT_TIME_LONG 2000
 #define WAIT_TIME_LONGEST 8000
@@ -53,6 +53,7 @@ typedef struct
     void *data[MAX_MIME_TYPES];
     mime_type types[MAX_MIME_TYPES];
     uint32_t len[MAX_MIME_TYPES];
+    bool offer_once;
     bool expired;
     uint32_t num_types;
     struct zwlr_data_control_source_v1 *source;
@@ -72,6 +73,7 @@ clipboard *clip_init(void);
 void clip_destroy(clipboard *clip);
 void clip_watch(clipboard *clip);
 void clip_get_selection(clipboard *clip);
+void clip_clear_selection(clipboard *clip);
 void clip_set_selection(clipboard *clip);
 void clip_sync_buffers(clipboard *clip);
 offer_buffer *offer_init(void);

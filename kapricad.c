@@ -185,4 +185,5 @@ int main(int argc, char *argv[])
     database_destroy(db);
     close(watch_signals);
     close(clean_up_entries);
+    clip_destroy(clip);
 }

@@ -14,8 +14,16 @@ clipboard *clip_init(void)
 
 void clip_destroy(clipboard *clip)
 {
-    offer_destroy(clip->selection_o);
-    source_destroy(clip->selection_s);
+    if (clip->selection_s)
+    {
+        source_clear(clip->selection_s);
+    }
+
+    if (clip->selection_o)
+    {
+        offer_destroy(clip->selection_o);
+    }
+
     zwlr_data_control_device_v1_destroy(clip->dmng);
     zwlr_data_control_manager_v1_destroy(clip->cmng);
     wl_seat_destroy(clip->seat);

@@ -23,7 +23,7 @@ cc = meson.get_compiler('c')
 sql = dependency('sqlite3', version: '>=3.6.19')
 wayland = dependency('wayland-client')
 wayland_scanner = find_program('wayland-scanner')
-magic = cc.find_library('libmagic')
+magic = cc.find_library('magic')
 
 wlr_prot = 'protocol/wlr-data-control-unstable-v1.xml'
 wlr_data = 'wlr-data-control'
@@ -52,7 +52,10 @@ lib = static_library(
   'database.h',
   'xmalloc.h',
   'xmalloc.c',
+  'detection.h',
+  'detection.c',
   dependencies: [wayland, sql, magic]
 )
 
-executable('kapricad', 'kapricad.c', link_with: lib, dependencies: wayland)
+executable('kapd', 'kapricad.c', link_with: lib, dependencies: wayland)
+executable('kapc', 'kaprica.c', link_with: lib, dependencies: wayland)
