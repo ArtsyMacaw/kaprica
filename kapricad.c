@@ -174,8 +174,11 @@ int main(int argc, char *argv[])
             /* Read just to clear the buffer */
             uint64_t tmp;
             read(clean_up_entries, &tmp, sizeof(uint64_t));
-            printf("Removed %d old entries\n",
-                   database_destroy_old_entries(db, -30));
+            uint16_t entries_removed = database_destroy_old_entries(db, -30);
+            if (entries_removed)
+            {
+                printf("Removed %d old entries\n", entries_removed);
+            }
         }
 
         wl_display_read_events(clip->display);
