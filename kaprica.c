@@ -472,7 +472,9 @@ int main(int argc, char *argv[])
             }
             printf("\n");
         }
+
         free(ids);
+        database_destroy(db);
     }
 
     clip_destroy(clip);
