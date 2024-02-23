@@ -126,32 +126,6 @@ static const char search_help[] =
     "    -i, --id              Show only the ids of the entries found\n"
     "    -t, --type            Search by MIME type\n";
 
-static void global_add(void *data, struct wl_registry *registry, uint32_t name,
-                       const char *interface, uint32_t version)
-{
-    if (strcmp(interface, "zwlr_data_control_manager_v1") == 0)
-    {
-        clip->cmng = wl_registry_bind(
-            registry, name, &zwlr_data_control_manager_v1_interface, 1);
-    }
-    else if (strcmp(interface, "wl_seat") == 0)
-    {
-        clip->seat = wl_registry_bind(registry, name, &wl_seat_interface, 3);
-    }
-}
-
-static void global_remove(void *data, struct wl_registry *registry,
-                          uint32_t name)
-{
-    /* Empty */
-}
-
-struct wl_registry_listener registry_listener =
-{
-    .global = global_add,
-    .global_remove = global_remove
-};
-
 static void parse_options(int argc, char *argv[])
 {
     if (argc < 2)
@@ -342,30 +316,6 @@ int main(int argc, char *argv[])
     parse_options(argc, argv);
 
     clip = clip_init();
-    clip->display = wl_display_connect(NULL);
-    if (!clip->display)
-    {
-        fprintf(stderr, "Failed to create display\n");
-        exit(EXIT_FAILURE);
-    }
-
-    struct wl_registry *registry = wl_display_get_registry(clip->display);
-    wl_registry_add_listener(registry, &registry_listener, NULL);
-
-    wl_display_roundtrip(clip->display);
-    if (!clip->cmng)
-    {
-        fprintf(stderr, "Compositor does not support wlr-data-control\n");
-        exit(EXIT_FAILURE);
-    }
-    if (!clip->seat)
-    {
-        fprintf(stderr, "Could not locate seat\n");
-        exit(EXIT_FAILURE);
-    }
-
-    clip->dmng =
-        zwlr_data_control_manager_v1_get_data_device(clip->cmng, clip->seat);
 
     source_buffer *src = clip->selection_s;
     offer_buffer *ofr = clip->selection_o;
