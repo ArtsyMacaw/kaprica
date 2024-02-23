@@ -40,8 +40,8 @@ static void prepare_statement(sqlite3 *db, const char *s, sqlite3_stmt **stmt)
     int ret = sqlite3_prepare_v2(db, s, -1, stmt, NULL);
     if (ret != SQLITE_OK)
     {
-        fprintf(stderr, "Failed to prepare statement: %d\n", ret);
-        exit(1);
+        fprintf(stderr, "Database error: %s\n", sqlite3_errmsg(db));
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -129,8 +129,8 @@ static int execute_statement(sqlite3_stmt *stmt)
 
     if (ret == SQLITE_MISUSE || ret == SQLITE_ERROR)
     {
-        fprintf(stderr, "Failed to execute statement: %d\n", ret);
-        return -1;
+        fprintf(stderr, "Database Error: %s\n", sqlite3_errstr(ret));
+        exit(EXIT_FAILURE);
     }
 
     return ret;
@@ -154,15 +154,10 @@ static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
         break;
     }
 
-    if (ret == SQLITE_NOMEM)
+    if (ret == SQLITE_NOMEM || ret == SQLITE_TOOBIG || ret == SQLITE_RANGE)
     {
-        fprintf(stderr, "Failed to allocate memory\n");
-        exit(1);
-    }
-    else if (ret == SQLITE_TOOBIG || ret == SQLITE_RANGE)
-    {
-        fprintf(stderr, "Failed to bind: %d\n", ret);
-        exit(1);
+        fprintf(stderr, "Database error: %s\n", sqlite3_errstr(ret));
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -259,11 +254,11 @@ void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
     execute_statement(select_snippet);
 
     const char *tmp_text =
-        (char *) sqlite3_column_text(select_snippet, 0);
+        (char *) sqlite3_column_text(select_snippet, (MATCH_BINDING - 1));
     if (!tmp_text)
     {
         fprintf(stderr, "Failed to allocate memory\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     src->snippet = xstrdup(tmp_text);
 
@@ -283,7 +278,7 @@ void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
         if (!tmp_blob)
         {
             fprintf(stderr, "Failed to allocate memory\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         memcpy(src->data[src->num_types], tmp_blob,
                src->len[src->num_types]);
@@ -293,7 +288,7 @@ void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
         if (!tmp_text)
         {
             fprintf(stderr, "Failed to allocate memory\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         src->types[src->num_types].type = xstrdup(tmp_text);
         src->types[src->num_types].pos = src->num_types;
@@ -312,8 +307,9 @@ sqlite3 *database_init(void)
     sqlite3_open("./test.db", &db);
     if (!db)
     {
-        fprintf(stderr, "Failed to create database\n");
-        exit(1);
+        fprintf(stderr, "Failed to create database: %s\n",
+                sqlite3_errmsg(db));
+        exit(EXIT_FAILURE);
     }
     printf("Opened database\n");
     prepare_bootstrap_statements(db);
