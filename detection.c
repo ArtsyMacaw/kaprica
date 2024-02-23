@@ -1,8 +1,11 @@
+#define _POSIX_C_SOURCE 200112L
+#define _XOPEN_SOURCE 700
 #include <magic.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 #include "xmalloc.h"
 #include "detection.h"
 #include "clipboard.h"
@@ -160,5 +163,69 @@ int find_write_type(source_buffer *src)
     else
     {
         return binary;
+    }
+}
+
+void get_snippet(source_buffer *src)
+{
+    int snippet_type = 0;
+    bool snippet_type_found = false;
+
+    for (int i = 0; i < src->num_types; i++)
+    {
+        if (is_utf8_text(src->types[i].type))
+        {
+            snippet_type = i;
+            snippet_type_found = true;
+            break;
+        }
+        else if (is_explicit_text(src->types[i].type))
+        {
+            snippet_type = i;
+            snippet_type_found = true;
+        }
+        else if (is_text(src->data[i], src->len[i]))
+        {
+            snippet_type = i;
+            snippet_type_found = true;
+        }
+    }
+    if (snippet_type_found)
+    {
+        for (int i = 0; i < src->len[snippet_type] &&
+                i < SNIPPET_SIZE; i++)
+        {
+            /* Replace newline characters with \ so the snippet remains all
+             * on one line when shown */
+            if (((char *) src->data[snippet_type])[i] == '\n')
+            {
+                src->snippet[i] = '\\';
+            }
+            else
+            {
+                src->snippet[i] =
+                    ((char *) src->data[snippet_type])[i];
+            }
+        }
+        if (strlen(src->snippet) >= SNIPPET_SIZE)
+        {
+            printf("\"%s...\"\n", src->snippet);
+        }
+        else
+        {
+            printf("\"%s\"\n", src->snippet);
+        }
+    }
+    else
+    {
+    /* If there's no text for us to display show a timestamp
+     * and the first MIME type offered */
+        time_t ltime;
+        struct tm result;
+        ltime = time(NULL);
+        localtime_r(&ltime, &result);
+        asctime_r(&result, src->snippet);
+        strcat(src->snippet, src->types[0].type);
+        printf("%s\n", src->snippet);
     }
 }

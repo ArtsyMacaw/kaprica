@@ -97,6 +97,7 @@ void source_clear(source_buffer *src)
         free(src->types[i].type);
         src->len[i] = 0;
     }
+    free(src->snippet);
     src->num_types = 0;
     src->expired = false;
 }

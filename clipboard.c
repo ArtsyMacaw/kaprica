@@ -2,6 +2,7 @@
 #include <wayland-client-protocol.h>
 #include "clipboard.h"
 #include "xmalloc.h"
+#include "detection.h"
 
 clipboard *clip_init(void)
 {
@@ -50,4 +51,6 @@ void clip_sync_buffers(clipboard *clip)
             src->num_types++;
         }
     }
+    src->snippet = calloc(sizeof(char), SNIPPET_SIZE);
+    get_snippet(src);
 }

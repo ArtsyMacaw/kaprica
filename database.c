@@ -12,7 +12,8 @@
 /* Every statement we intend to use */
 static sqlite3_stmt *create_main_table, *create_content_table,
     *insert_source_entry, *insert_source_content, *delete_old_source_entries,
-    *pragma_foreign_keys, *select_latest_source, *select_source;
+    *pragma_foreign_keys, *select_latest_source, *select_source,
+    *find_matching_sources, *select_snippet, *find_matching_types;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -25,6 +26,8 @@ enum datatype
 };
 
 /* SQL Parameters && iCol values */
+#define MATCH_BINDING 1
+#define SNIPPET_BINDING 1
 #define ID_BINDING 1
 #define DATE_BINDING 1
 #define ENTRY_BINDING 1
@@ -51,8 +54,9 @@ static void prepare_bootstrap_statements(sqlite3 *db)
 
     const char main_table[] =
         "CREATE TABLE IF NOT EXISTS clipboard_history ("
-        "    history_id INTEGER PRIMARY KEY ASC,"
-        "    timestamp DATETIME NOT NULL DEFAULT (datetime('now')));";
+        "    history_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,"
+        "    timestamp DATETIME NOT NULL DEFAULT (datetime('now')),"
+        "    snippet TEXT NOT NULL);";
     prepare_statement(db, main_table, &create_main_table);
 
     const char content_table[] =
@@ -71,7 +75,8 @@ static void prepare_bootstrap_statements(sqlite3 *db)
  * finalize them when the program is stopped */
 static void prepare_all_statements(sqlite3 *db)
 {
-    const char source_entry[] = "INSERT INTO clipboard_history DEFAULT VALUES;";
+    const char source_entry[] =
+        "INSERT INTO clipboard_history (snippet) VALUES (?1);";
     prepare_statement(db, source_entry, &insert_source_entry);
 
     const char source_content[] =
@@ -92,6 +97,18 @@ static void prepare_all_statements(sqlite3 *db)
     const char get_source[] = "SELECT * FROM content"
                               "    WHERE entry = ?1;";
     prepare_statement(db, get_source, &select_source);
+
+    const char get_snippet[] = "SELECT snippet FROM clipboard_history"
+                               "   WHERE history_id = ?1;";
+    prepare_statement(db, get_snippet, &select_snippet);
+
+    const char find_source[] = "SELECT entry FROM content"
+                               "    WHERE data LIKE '%' || ?1 || '%';";
+    prepare_statement(db, find_source, &find_matching_sources);
+
+    const char find_source_type[] = "SELECT entry FROM content"
+                                    "    WHERE mime_type LIKE '%' || ?1 || '%';";
+    prepare_statement(db, find_source_type, &find_matching_types);
 }
 
 static int execute_statement(sqlite3_stmt *stmt)
@@ -151,8 +168,13 @@ static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
 
 void database_insert_source(sqlite3 *db, source_buffer *src)
 {
+    bind_statement(insert_source_entry, SNIPPET_BINDING, src->snippet,
+            strlen(src->snippet), TEXT);
+
     execute_statement(insert_source_entry);
+
     sqlite3_reset(insert_source_entry);
+    sqlite3_clear_bindings(insert_source_entry);
 
     uint32_t rowid = sqlite3_last_insert_rowid(db);
     for (int i = 0; i < src->num_types; i++)
@@ -181,10 +203,74 @@ uint32_t database_get_latest_source_id(sqlite3 *db)
     return ret;
 }
 
+uint16_t database_find_matching_source(sqlite3 *db, void *match,
+        uint32_t length, uint16_t num_of_entries, uint32_t* list_of_ids,
+        bool mime_type)
+{
+    sqlite3_stmt *search;
+
+    if (mime_type)
+    {
+        search = find_matching_types;
+    }
+    else
+    {
+        search = find_matching_sources;
+    }
+
+    bind_statement(search, MATCH_BINDING, match,
+            length, BLOB);
+
+    int counter = 0;
+
+    while(execute_statement(search) != SQLITE_DONE)
+    {
+        uint32_t tmp =
+            sqlite3_column_int(search, (ENTRY_BINDING - 1));
+
+        // Ignore repeat matches for the same entry.
+        // There's probably a way to do this solely with SQL,
+        // but I dont know how.
+        if (!counter)
+        {
+            list_of_ids[counter] = tmp;
+            counter++;
+        }
+        else if (list_of_ids[counter - 1] != tmp)
+        {
+            list_of_ids[counter] = tmp;
+            counter++;
+        }
+        if (counter == num_of_entries)
+        {
+            break;
+        }
+    }
+
+    sqlite3_reset(search);
+    sqlite3_clear_bindings(search);
+
+    return counter;
+}
+
 void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
 {
-    bind_statement(select_source, ID_BINDING, &id, 0, INT);
+    bind_statement(select_snippet, ID_BINDING, &id, 0, INT);
+    execute_statement(select_snippet);
 
+    const char *tmp_text =
+        (char *) sqlite3_column_text(select_snippet, 0);
+    if (!tmp_text)
+    {
+        fprintf(stderr, "Failed to allocate memory\n");
+        exit(1);
+    }
+    src->snippet = xstrdup(tmp_text);
+
+    sqlite3_reset(select_snippet);
+    sqlite3_clear_bindings(select_snippet);
+
+    bind_statement(select_source, ID_BINDING, &id, 0, INT);
     while (execute_statement(select_source) != SQLITE_DONE &&
            src->num_types < MAX_MIME_TYPES)
     {
@@ -202,7 +288,7 @@ void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
         memcpy(src->data[src->num_types], tmp_blob,
                src->len[src->num_types]);
 
-        const char *tmp_text =
+        tmp_text =
             (char *)sqlite3_column_text(select_source, (MIME_TYPE_BINDING - 1));
         if (!tmp_text)
         {
@@ -261,5 +347,6 @@ void database_destroy(sqlite3 *db)
     sqlite3_finalize(insert_source_entry);
     sqlite3_finalize(create_main_table);
     sqlite3_finalize(create_content_table);
+    sqlite3_finalize(find_matching_sources);
     sqlite3_close(db);
 }

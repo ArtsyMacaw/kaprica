@@ -17,9 +17,11 @@
 /* By default wait 100ms for the client to start writing data
  for images and other types that may take longer we wait a second
  If we succesfully received data we can safely wait for a while */
-#define WAIT_TIME_SHORT 100
+#define WAIT_TIME_SHORT 10
 #define WAIT_TIME_LONG 2000
 #define WAIT_TIME_LONGEST 8000
+
+#define SNIPPET_SIZE 80
 
 typedef enum
 {
@@ -53,6 +55,7 @@ typedef struct
     void *data[MAX_MIME_TYPES];
     mime_type types[MAX_MIME_TYPES];
     uint32_t len[MAX_MIME_TYPES];
+    char *snippet;
     bool offer_once;
     bool expired;
     uint32_t num_types;

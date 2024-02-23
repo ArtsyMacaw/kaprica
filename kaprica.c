@@ -20,8 +20,8 @@ static clipboard *clip;
 enum verb
 {
     COPY,
-    PASTE
-    // Search
+    PASTE,
+    SEARCH
     // Delete
 };
 
@@ -33,16 +33,22 @@ struct config
     bool listtypes;
     bool clear;
     bool paste_once;
+    bool id;
+    bool search_by_type;
     char *seat;
     char *type;
+    uint16_t limit;
     enum verb action;
 };
 
 static struct config options = {.foreground = false,
                                 .listtypes = false,
                                 .newline = false,
+                                .id = false,
+                                .search_by_type = false,
                                 .clear = false,
                                 .paste_once = false,
+                                .limit = 10,
                                 .seat = NULL,
                                 .type = NULL,
                                 .action = 0};
@@ -103,6 +109,23 @@ static const char paste_help[] =
     "    -s, --seat <seat>     Pick the seat to use\n"
     "    -t, --type <type>     Manually specify MIME type to paste\n";
 
+static const struct option search[] = {{"help", no_argument, NULL, 'h'},
+                                      {"version", no_argument, NULL, 'v'},
+                                      {"limit", required_argument, NULL, 'l'},
+                                      {"id", no_argument, NULL, 'i'},
+                                      {"type", no_argument, NULL, 't'},
+                                      {0, 0, 0, 0}};
+
+static const char search_help[] =
+    "Usage: kapc search [options]\n"
+    "\n"
+    "Options:\n"
+    "    -h, --help            Show this help message\n"
+    "    -v, --version         Show version number\n"
+    "    -l, --limit <max>     Limit the number of entries returned from the search\n"
+    "    -i, --id              Show only the ids of the entries found\n"
+    "    -t, --type            Search by MIME type\n";
+
 static void global_add(void *data, struct wl_registry *registry, uint32_t name,
                        const char *interface, uint32_t version)
 {
@@ -129,10 +152,142 @@ struct wl_registry_listener registry_listener =
     .global_remove = global_remove
 };
 
+static void parse_options(int argc, char *argv[])
+{
+    if (argc < 2)
+    {
+        printf("%s", help);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Manually handle argv[1] */
+    void *action;
+    char *opt_string;
+    if (!strcmp(argv[1], "copy"))
+    {
+        action = (void *)copy;
+        opt_string = "hfnt:s:cov";
+        options.action = COPY;
+    }
+    else if (!strcmp(argv[1], "paste"))
+    {
+        action = (void *)paste;
+        opt_string = "hlt:s:nv";
+        options.action = PASTE;
+    }
+    else if (!strcmp(argv[1], "search"))
+    {
+        action = (void *)search;
+        opt_string = "hvl:it";
+        options.action = SEARCH;
+    }
+    else if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))
+    {
+        printf("Kaprica pre-release\n");
+        exit(EXIT_SUCCESS);
+    }
+    else if (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h"))
+    {
+        printf("%s", help);
+        exit(EXIT_SUCCESS);
+    }
+    else
+    {
+        printf("%s", help);
+        exit(EXIT_FAILURE);
+    }
+
+    int c;
+    while (true)
+    {
+        /* Since we handle argv[1] ourselves, pass a modified argc & argv
+         * to 'hide' it from getopt */
+        int option_index = 0;
+        c = getopt_long((argc - 1), (argv + 1), opt_string,
+                        (struct option *)action, &option_index);
+
+        if (c == -1)
+        {
+            break;
+        }
+
+        switch (c)
+        {
+        case 'v':
+            printf("Kaprica pre-release\n");
+            exit(EXIT_SUCCESS);
+        case 'f':
+            options.foreground = true;
+            break;
+        case 'l':
+            if (options.action == SEARCH)
+            {
+                options.limit = atoi(optarg);
+                if (options.limit <= 0)
+                {
+                    fprintf(stderr,
+                            "--limit requires a positive integer as an argument\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else
+            {
+                options.listtypes = true;
+            }
+            break;
+        case 'i':
+            options.id = true;
+            break;
+        case 'n':
+            options.newline = true;
+            break;
+        case 'c':
+            options.clear = true;
+            break;
+        case 'o':
+            options.paste_once = true;
+            break;
+        case 't':
+            if (options.action == SEARCH)
+            {
+                options.search_by_type = true;
+            }
+            else if (!optarg)
+            {
+                printf("Missing required argument for --type\n");
+                exit(EXIT_FAILURE);
+            }
+            else
+            {
+                options.type = xstrdup(optarg);
+            }
+            break;
+        case '?':
+        case 'h':
+        default:
+            if (options.action == COPY)
+            {
+                printf("%s", copy_help);
+            }
+            else if (options.action == PASTE)
+            {
+                printf("%s", paste_help);
+            }
+            else if (options.action == SEARCH)
+            {
+                printf("%s", search_help);
+            }
+            exit(EXIT_FAILURE);
+        }
+    }
+    /* Shift optind back to the correct index */
+    optind++;
+}
+
 static uint32_t trim_newline(void* data, uint32_t length)
 {
     /* Check last two bytes for newline in case data
-     * null ended */
+     * is null ended */
     if (((char *) data)[length - 1] == '\n')
     {
         length -= 1;
@@ -182,105 +337,6 @@ static uint32_t concatenate_argv(uint16_t args, char *input[],
     return (strlen(output->data[0]));
 }
 
-static void parse_options(int argc, char *argv[])
-{
-    if (argc < 2)
-    {
-        printf("%s", help);
-        exit(EXIT_FAILURE);
-    }
-
-    /* Manually handle argv[1] */
-    void *action;
-    char *opt_string;
-    if (!strcmp(argv[1], "copy"))
-    {
-        action = (void *)copy;
-        opt_string = "hfnt:s:cov";
-        options.action = COPY;
-    }
-    else if (!strcmp(argv[1], "paste"))
-    {
-        action = (void *)paste;
-        opt_string = "hlt:s:nv";
-        options.action = PASTE;
-    }
-    else if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))
-    {
-        printf("Kaprica pre-release\n");
-        exit(EXIT_SUCCESS);
-    }
-    else if (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h"))
-    {
-        printf("%s", help);
-        exit(EXIT_SUCCESS);
-    }
-    else
-    {
-        printf("%s", help);
-        exit(EXIT_FAILURE);
-    }
-
-    int c;
-    while (true)
-    {
-        /* Since we handle argv[1] ourselves, pass a modified argc & argv
-         * to 'hide' it from getopt */
-        int option_index = 0;
-        c = getopt_long((argc - 1), (argv + 1), opt_string,
-                        (struct option *)action, &option_index);
-
-        if (c == -1)
-        {
-            break;
-        }
-
-        switch (c)
-        {
-        case 'v':
-            printf("Kaprica pre-release\n");
-            exit(EXIT_SUCCESS);
-        case 'f':
-            options.foreground = true;
-            break;
-        case 'l':
-            options.listtypes = true;
-            break;
-        case 'n':
-            options.newline = true;
-            break;
-        case 'c':
-            options.clear = true;
-            break;
-        case 'o':
-            options.paste_once = true;
-            break;
-        case 't':
-            if (!optarg)
-            {
-                printf("Missing required argument for --type\n");
-                exit(EXIT_FAILURE);
-            }
-            options.type = xstrdup(optarg);
-            break;
-        case '?':
-        case 'h':
-        default:
-            if (options.action == COPY)
-            {
-                printf("%s", copy_help);
-            }
-            else if (options.action == PASTE)
-            {
-                printf("%s", paste_help);
-            }
-            exit(EXIT_FAILURE);
-        }
-    }
-    /* Shift optind back to the correct index */
-    optind++;
-}
-
 int main(int argc, char *argv[])
 {
     parse_options(argc, argv);
@@ -311,6 +367,8 @@ int main(int argc, char *argv[])
     clip->dmng =
         zwlr_data_control_manager_v1_get_data_device(clip->cmng, clip->seat);
 
+    source_buffer *src = clip->selection_s;
+    offer_buffer *ofr = clip->selection_o;
     if (options.action == COPY)
     {
         if (options.clear)
@@ -320,7 +378,6 @@ int main(int argc, char *argv[])
             exit(EXIT_SUCCESS);
         }
 
-        source_buffer *src = clip->selection_s;
         if (argv[optind])
         {
             if ((argc - optind) == 1)
@@ -376,7 +433,6 @@ int main(int argc, char *argv[])
     }
     else if (options.action == PASTE)
     {
-        offer_buffer *ofr = clip->selection_o;
         clip_watch(clip);
         wl_display_roundtrip(clip->display);
         if (!ofr->offer)
@@ -392,7 +448,6 @@ int main(int argc, char *argv[])
         clip_get_selection(clip);
 
         clip_sync_buffers(clip);
-        source_buffer *src = clip->selection_s;
 
         if (options.listtypes)
         {
@@ -433,6 +488,41 @@ int main(int argc, char *argv[])
         {
             printf("\n");
         }
+    }
+    else if (options.action == SEARCH)
+    {
+        sqlite3 *db = database_init();
+        if (argv[optind])
+        {
+            if ((argc - optind) == 1)
+            {
+                src->data[0] = xstrdup(argv[optind]);
+                src->len[0] = strlen(argv[optind]);
+            }
+            else
+            {
+                /* Pass everything not handled by getopt or main */
+                src->len[0] = concatenate_argv((argc - optind), (argv + optind), src);
+            }
+        }
+
+        uint32_t *ids = xmalloc(sizeof(uint32_t) * options.limit);
+        uint16_t found =
+            database_find_matching_source(db, src->data[0],
+                    src->len[0], options.limit, ids, options.search_by_type);
+
+        for (int i = 0; i < found; i++)
+        {
+            source_clear(src);
+            database_get_source(db, ids[i], src);
+            printf("ID: %d", ids[i]);
+            if (!options.id)
+            {
+                printf(" \"%s\"...", src->snippet);
+            }
+            printf("\n");
+        }
+        free(ids);
     }
 
     clip_destroy(clip);
