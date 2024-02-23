@@ -54,7 +54,7 @@ static void prepare_bootstrap_statements(sqlite3 *db)
 
     const char main_table[] =
         "CREATE TABLE IF NOT EXISTS clipboard_history ("
-        "    history_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,"
+        "    history_id INTEGER PRIMARY KEY,"
         "    timestamp DATETIME NOT NULL DEFAULT (datetime('now')),"
         "    snippet TEXT NOT NULL);";
     prepare_statement(db, main_table, &create_main_table);
@@ -137,7 +137,7 @@ static int execute_statement(sqlite3_stmt *stmt)
 }
 
 static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
-                           uint16_t length, enum datatype type)
+                           uint32_t length, enum datatype type)
 {
     int ret;
     switch (type)
@@ -146,7 +146,7 @@ static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
         ret = sqlite3_bind_int(stmt, literal, *(int *)data);
         break;
     case BLOB:
-        ret = sqlite3_bind_blob(stmt, literal, data, length, SQLITE_STATIC);
+        ret = sqlite3_bind_blob64(stmt, literal, data, length, SQLITE_STATIC);
         break;
     case TEXT:
         ret = sqlite3_bind_text(stmt, literal, (char *)data, length,
@@ -193,7 +193,7 @@ uint32_t database_get_latest_source_id(sqlite3 *db)
 {
     execute_statement(select_latest_source);
 
-    uint32_t ret = sqlite3_column_int(select_latest_source, 0);
+    int64_t ret = sqlite3_column_int64(select_latest_source, 0);
     sqlite3_reset(select_latest_source);
     return ret;
 }
@@ -253,14 +253,14 @@ void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
     bind_statement(select_snippet, ID_BINDING, &id, 0, INT);
     execute_statement(select_snippet);
 
-    const char *tmp_text =
+    const char *tmp_snippet =
         (char *) sqlite3_column_text(select_snippet, (MATCH_BINDING - 1));
-    if (!tmp_text)
+    if (!tmp_snippet)
     {
         fprintf(stderr, "Failed to allocate memory\n");
         exit(EXIT_FAILURE);
     }
-    src->snippet = xstrdup(tmp_text);
+    src->snippet = xstrdup(tmp_snippet);
 
     sqlite3_reset(select_snippet);
     sqlite3_clear_bindings(select_snippet);
@@ -272,7 +272,6 @@ void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
         src->len[src->num_types] =
             sqlite3_column_int(select_source, (LENGTH_BINDING - 1));
 
-        src->data[src->num_types] = xmalloc(src->len[src->num_types]);
         const void *tmp_blob =
             sqlite3_column_blob(select_source, (DATA_BINDING - 1));
         if (!tmp_blob)
@@ -280,11 +279,13 @@ void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
             fprintf(stderr, "Failed to allocate memory\n");
             exit(EXIT_FAILURE);
         }
+        src->data[src->num_types] = xmalloc(src->len[src->num_types]);
         memcpy(src->data[src->num_types], tmp_blob,
                src->len[src->num_types]);
 
-        tmp_text =
+        const char *tmp_text =
             (char *)sqlite3_column_text(select_source, (MIME_TYPE_BINDING - 1));
+
         if (!tmp_text)
         {
             fprintf(stderr, "Failed to allocate memory\n");
