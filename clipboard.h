@@ -78,7 +78,6 @@ void clip_watch(clipboard *clip);
 void clip_get_selection(clipboard *clip);
 void clip_clear_selection(clipboard *clip);
 void clip_set_selection(clipboard *clip);
-void clip_sync_buffers(clipboard *clip);
 offer_buffer *offer_init(void);
 void offer_clear(offer_buffer *ofr);
 void offer_destroy(offer_buffer *ofr);

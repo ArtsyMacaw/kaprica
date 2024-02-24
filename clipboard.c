@@ -2,7 +2,6 @@
 #include <wayland-client-protocol.h>
 #include "clipboard.h"
 #include "xmalloc.h"
-#include "detection.h"
 
 static void global_add(void *data, struct wl_registry *registry, uint32_t name,
                        const char *interface, uint32_t version)
@@ -76,27 +75,4 @@ void clip_destroy(clipboard *clip)
     wl_seat_destroy(clip->seat);
     wl_display_disconnect(clip->display);
     free(clip);
-}
-
-void clip_sync_buffers(clipboard *clip)
-{
-    source_buffer *src = clip->selection_s;
-    offer_buffer *ofr = clip->selection_o;
-
-    source_clear(src);
-    for (int i = 0; i < ofr->num_types; i++)
-    {
-        if (!ofr->invalid_data[i])
-        {
-            src->data[src->num_types] = xmalloc(ofr->len[i]);
-            memcpy(src->data[src->num_types], ofr->data[i],
-                   ofr->len[i]);
-            src->len[src->num_types] = ofr->len[i];
-            src->types[src->num_types].type =
-                xstrdup(ofr->types[i].type);
-            src->num_types++;
-        }
-    }
-    src->snippet = calloc(sizeof(char), SNIPPET_SIZE);
-    get_snippet(src);
 }

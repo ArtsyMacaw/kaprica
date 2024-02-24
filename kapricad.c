@@ -88,7 +88,6 @@ int main(int argc, char *argv[])
     if (!clip->selection_s->num_types)
     {
         clip_get_selection(clip);
-        clip_sync_buffers(clip);
         database_insert_source(db, clip->selection_s);
     }
     clip_set_selection(clip);
@@ -102,7 +101,6 @@ int main(int argc, char *argv[])
             wl_display_cancel_read(clip->display);
 
             clip_get_selection(clip);
-            clip_sync_buffers(clip);
             clip_set_selection(clip);
 
             database_insert_source(db, clip->selection_s);

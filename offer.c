@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "detection.h"
 #include "clipboard.h"
 #include "wlr-data-control.h"
 #include "xmalloc.h"
@@ -82,6 +83,29 @@ const struct zwlr_data_control_device_v1_listener
         .finished = data_control_device_finished_handler
 };
 
+void sync_buffers(clipboard *clip)
+{
+    source_buffer *src = clip->selection_s;
+    offer_buffer *ofr = clip->selection_o;
+
+    source_clear(src);
+    for (int i = 0; i < ofr->num_types; i++)
+    {
+        if (!ofr->invalid_data[i])
+        {
+            src->data[src->num_types] = xmalloc(ofr->len[i]);
+            memcpy(src->data[src->num_types], ofr->data[i],
+                   ofr->len[i]);
+            src->len[src->num_types] = ofr->len[i];
+            src->types[src->num_types].type =
+                xstrdup(ofr->types[i].type);
+            src->num_types++;
+        }
+    }
+    src->snippet = calloc(sizeof(char), SNIPPET_SIZE);
+    get_snippet(src);
+}
+
 void clip_watch(clipboard *clip)
 {
     zwlr_data_control_device_v1_add_listener(
@@ -112,15 +136,12 @@ void clip_get_selection(clipboard *clip)
         /* Allocate max size for simplicity's sake */
         ofr->data[i] = xmalloc(MAX_DATA_SIZE);
 
-        int wait_time;
+        int wait_time = WAIT_TIME_SHORT;
+
         if (!strncmp("image/png", ofr->types[i].type, strlen("image/png")) ||
             !strncmp("image/jpeg", ofr->types[i].type, strlen("image/jpeg")))
         {
             wait_time = WAIT_TIME_LONG;
-        }
-        else
-        {
-            wait_time = WAIT_TIME_SHORT;
         }
 
         while (poll(&watch_for_data, 1, wait_time) > 0)
@@ -156,6 +177,7 @@ void clip_get_selection(clipboard *clip)
             ofr->data[i] = xrealloc(ofr->data[i], ofr->len[i]);
         }
     }
+    sync_buffers(clip);
 }
 
 offer_buffer *offer_init(void)

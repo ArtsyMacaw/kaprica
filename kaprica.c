@@ -397,8 +397,6 @@ int main(int argc, char *argv[])
         }
         clip_get_selection(clip);
 
-        clip_sync_buffers(clip);
-
         if (options.listtypes)
         {
             for (int i = 0; i < src->num_types; i++)
