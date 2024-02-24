@@ -85,6 +85,7 @@ void source_destroy(source_buffer *src)
         free(src->data[i]);
         free(src->types[i].type);
     }
+    free(src->snippet);
     zwlr_data_control_source_v1_destroy(src->source);
     free(src);
 }

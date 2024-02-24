@@ -62,7 +62,7 @@ void clip_destroy(clipboard *clip)
 {
     if (clip->selection_s)
     {
-        source_clear(clip->selection_s);
+        source_destroy(clip->selection_s);
     }
 
     if (clip->selection_o)
