@@ -13,7 +13,8 @@
 static sqlite3_stmt *create_main_table, *create_content_table,
     *insert_source_entry, *insert_source_content, *delete_old_source_entries,
     *pragma_foreign_keys, *select_latest_source, *select_source,
-    *find_matching_sources, *select_snippet, *find_matching_types;
+    *find_matching_sources, *select_snippet, *find_matching_types,
+    *pragma_journal_wal;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -51,6 +52,9 @@ static void prepare_bootstrap_statements(sqlite3 *db)
 {
     const char foreign_keys[] = "PRAGMA foreign_keys = ON;";
     prepare_statement(db, foreign_keys, &pragma_foreign_keys);
+
+    const char journal_wal[] = "PRAGMA journal_mode = WAL;";
+    prepare_statement(db, journal_wal, &pragma_journal_wal);
 
     const char main_table[] =
         "CREATE TABLE IF NOT EXISTS clipboard_history ("
@@ -316,6 +320,7 @@ sqlite3 *database_init(void)
     prepare_bootstrap_statements(db);
 
     execute_statement(pragma_foreign_keys);
+    execute_statement(pragma_journal_wal);
     execute_statement(create_main_table);
     execute_statement(create_content_table);
 
@@ -345,5 +350,6 @@ void database_destroy(sqlite3 *db)
     sqlite3_finalize(create_main_table);
     sqlite3_finalize(create_content_table);
     sqlite3_finalize(find_matching_sources);
+    sqlite3_finalize(pragma_journal_wal);
     sqlite3_close(db);
 }
