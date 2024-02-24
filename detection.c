@@ -81,6 +81,11 @@ static bool is_utf8_text(const char *mime_type)
 
 static bool is_explicit_text(const char *mime_type)
 {
+    if(!strncmp("text/_moz_htmlinfo", mime_type,
+            strlen("text/_moz_htmlinfo")))
+    {
+        return false;
+    }
     if (!strncmp("text/", mime_type, strlen("text/")))
     {
         return true;
@@ -166,66 +171,51 @@ int find_write_type(source_buffer *src)
     }
 }
 
+/* If there's no text version of the source generate a time
+ * stamp and concatenate it with the first mime type for the snippet */
+void generate_stamp(source_buffer *src)
+{
+    time_t ltime;
+    ltime=time(NULL);
+    src->snippet = xstrdup(asctime(localtime(&ltime)));
+    /* Replace '\n' with a space */
+    src->snippet[strlen(src->snippet) - 1] = ' ';
+
+    int size = strlen(src->types[0].type) + strlen(src->snippet) + 1;
+    src->snippet = xrealloc(src->snippet, (size * sizeof(char)));
+    src->snippet = strcat(src->snippet, src->types[0].type);
+}
+
 void get_snippet(source_buffer *src)
 {
-    int snippet_type = 0;
-    bool snippet_type_found = false;
+    int snip_type = find_write_type(src);
 
-    for (int i = 0; i < src->num_types; i++)
+    if (!is_utf8_text(src->types[snip_type].type) &&
+            !is_explicit_text(src->types[snip_type].type))
     {
-        if (is_utf8_text(src->types[i].type))
-        {
-            snippet_type = i;
-            snippet_type_found = true;
-            break;
-        }
-        else if (is_explicit_text(src->types[i].type))
-        {
-            snippet_type = i;
-            snippet_type_found = true;
-        }
-        else if (is_text(src->data[i], src->len[i]))
-        {
-            snippet_type = i;
-            snippet_type_found = true;
-        }
-    }
-    if (snippet_type_found)
-    {
-        for (int i = 0; i < src->len[snippet_type] &&
-                i < SNIPPET_SIZE; i++)
-        {
-            /* Replace newline characters with \ so the snippet remains all
-             * on one line when shown */
-            if (((char *) src->data[snippet_type])[i] == '\n')
-            {
-                src->snippet[i] = '\\';
-            }
-            else
-            {
-                src->snippet[i] =
-                    ((char *) src->data[snippet_type])[i];
-            }
-        }
-        if (strlen(src->snippet) >= SNIPPET_SIZE)
-        {
-            printf("\"%s...\"\n", src->snippet);
-        }
-        else
-        {
-            printf("\"%s\"\n", src->snippet);
-        }
+        generate_stamp(src);
     }
     else
     {
-    /* If there's no text for us to display show a timestamp
-     * and the first MIME type offered */
-        time_t ltime;
-        struct tm result;
-        ltime = time(NULL);
-        localtime_r(&ltime, &result);
-        asctime_r(&result, src->snippet);
-        strcat(src->snippet, src->types[0].type);
-        printf("%s\n", src->snippet);
+        int j = 0;
+        for (int i = 0; i < src->len[snip_type] &&
+            j < (SNIPPET_SIZE - 1); i++)
+        {
+            /* Replace newline characters with \ so the snippet remains all
+            * on one line when shown */
+            if (((char *) src->data[snip_type])[i] == '\n')
+            {
+                src->snippet[j] = '\\';
+                j++;
+            }
+            /* Ignore null characters that come before the end of the string */
+            else if (((char *) src->data[snip_type])[i] != '\0')
+            {
+                src->snippet[j] =
+                    ((char *) src->data[snip_type])[i];
+                j++;
+            }
+        }
+        src->snippet[j] = '\0';
     }
 }
