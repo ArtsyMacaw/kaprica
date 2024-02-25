@@ -316,7 +316,6 @@ sqlite3 *database_init(void)
                 sqlite3_errmsg(db));
         exit(EXIT_FAILURE);
     }
-    printf("Opened database\n");
     prepare_bootstrap_statements(db);
 
     execute_statement(pragma_foreign_keys);
