@@ -2,3 +2,5 @@ build/
 debug/
 .cache/
 *.db*
+*vscode*
+*workspace*
