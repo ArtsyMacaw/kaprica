@@ -33,7 +33,9 @@ struct config
     bool listtypes;
     bool clear;
     bool paste_once;
+    bool list;
     bool id;
+    bool snippets;
     bool search_by_type;
     char *seat;
     char *type;
@@ -44,7 +46,9 @@ struct config
 static struct config options = {.foreground = false,
                                 .listtypes = false,
                                 .newline = false,
+                                .list = false,
                                 .id = false,
+                                .snippets = false,
                                 .search_by_type = false,
                                 .clear = false,
                                 .paste_once = false,
@@ -59,6 +63,7 @@ static const char help[] =
     "Commands:\n"
     "    copy  - Copies data to the Wayland clipboard\n"
     "    paste - Retrieves data from either the clipboard or history\n"
+    "    search - Searches through history database\n"
     "Options:\n"
     "    -h, --help            Show this help message\n"
     "    -v, --version         Show version number\n"
@@ -71,6 +76,7 @@ static const struct option copy[] = {{"help", no_argument, NULL, 'h'},
                                      {"trim-newline", no_argument, NULL, 'n'},
                                      {"paste-once", no_argument, NULL, 'o'},
                                      {"clear", no_argument, NULL, 'c'},
+                                     {"id", no_argument, NULL, 'i'},
                                      {"type", required_argument, NULL, 't'},
                                      {"seat", required_argument, NULL, 's'},
                                      {0, 0, 0, 0}};
@@ -85,6 +91,7 @@ static const char copy_help[] =
     "    -v, --version         Show version number\n"
     "    -f, --foreground      Stay in foreground instead of forking\n"
     "    -n, --trim-newline    Do not copy the trailing newline\n"
+    "    -i, --id              Copy given id to clipboard\n"
     "    -o, --paste-once      Only serve one paste request and then exit\n"
     "    -c, --clear           Instead of copying, clear the clipboard\n"
     "    -s, --seat <seat>     Pick the seat to use\n"
@@ -93,8 +100,9 @@ static const char copy_help[] =
 static const struct option paste[] = {{"help", no_argument, NULL, 'h'},
                                       {"list-types", no_argument, NULL, 'l'},
                                       {"version", no_argument, NULL, 'v'},
-                                      {"type", required_argument, NULL, 't'},
+                                      {"id", no_argument, NULL, 'i'},
                                       {"no-newline", no_argument, NULL, 'n'},
+                                      {"type", required_argument, NULL, 't'},
                                       {"seat", required_argument, NULL, 's'},
                                       {0, 0, 0, 0}};
 
@@ -106,6 +114,7 @@ static const char paste_help[] =
     "    -v, --version         Show version number\n"
     "    -l, --list-types      Instead of pasting, list the offered types\n"
     "    -n, --no-newline      Do not add a newline character\n"
+    "    -i, --id              Paste one or more id's from history\n"
     "    -s, --seat <seat>     Pick the seat to use\n"
     "    -t, --type <type>     Manually specify MIME type to paste\n";
 
@@ -113,6 +122,8 @@ static const struct option search[] = {{"help", no_argument, NULL, 'h'},
                                       {"version", no_argument, NULL, 'v'},
                                       {"limit", required_argument, NULL, 'l'},
                                       {"id", no_argument, NULL, 'i'},
+                                      {"snippet", no_argument, NULL, 's'},
+                                      {"list", no_argument, NULL, 'L'},
                                       {"type", no_argument, NULL, 't'},
                                       {0, 0, 0, 0}};
 
@@ -124,7 +135,9 @@ static const char search_help[] =
     "    -v, --version         Show version number\n"
     "    -l, --limit <max>     Limit the number of entries returned from the search\n"
     "    -i, --id              Show only the ids of the entries found\n"
-    "    -t, --type            Search by MIME type\n";
+    "    -s, --snippet         Show only the snippets of the entries found\n"
+    "    -t, --type            Search by MIME type\n"
+    "    -L, --list            Output in machine-readable format\n";
 
 static void parse_options(int argc, char *argv[])
 {
@@ -140,19 +153,19 @@ static void parse_options(int argc, char *argv[])
     if (!strcmp(argv[1], "copy"))
     {
         action = (void *)copy;
-        opt_string = "hfnt:s:cov";
+        opt_string = "hfnt:s:covi";
         options.action = COPY;
     }
     else if (!strcmp(argv[1], "paste"))
     {
         action = (void *)paste;
-        opt_string = "hlt:s:nv";
+        opt_string = "hlt:s:nvi";
         options.action = PASTE;
     }
     else if (!strcmp(argv[1], "search"))
     {
         action = (void *)search;
-        opt_string = "hvl:it";
+        opt_string = "hvl:itLs";
         options.action = SEARCH;
     }
     else if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))
@@ -193,6 +206,9 @@ static void parse_options(int argc, char *argv[])
         case 'f':
             options.foreground = true;
             break;
+        case 'L':
+            options.list = true;
+            break;
         case 'l':
             if (options.action == SEARCH)
             {
@@ -217,6 +233,9 @@ static void parse_options(int argc, char *argv[])
             break;
         case 'c':
             options.clear = true;
+            break;
+        case 's':
+            options.snippets = true;
             break;
         case 'o':
             options.paste_once = true;
@@ -287,10 +306,62 @@ static void get_stdin(source_buffer *input)
     }
 }
 
+/* Processes argv[] into an array of integers */
+static uint32_t get_ids(int args, char *argv[], uint32_t *ids)
+{
+    int num_of_ids = args;
+    uint32_t tmp = 0, j = 0;
+    for (int i = 0; i < num_of_ids; i++)
+    {
+        tmp = atoi(argv[i]);
+        if (!tmp)
+        {
+            fprintf(stderr, "Invalid id %s\n", argv[i]);
+        }
+        else
+        {
+            ids[j] = tmp;
+            j++;
+        }
+    }
+    return j;
+}
+
+/* Processes stdin into an array of integers */
+static uint32_t seperate_stdin_into_ids(uint32_t *ids)
+{
+    uint32_t num_of_ids = 0, tmp = 0;
+    size_t len = 0;
+    ssize_t nread = 0;
+    char *token = NULL;
+
+    while((nread = getline(&token, &len, stdin)) != -1)
+    {
+        tmp = atoi(token);
+        if (!tmp)
+        {
+            fprintf(stderr, "Invalid id %s\n", token);
+        }
+        else
+        {
+            ids[num_of_ids] = tmp;
+            num_of_ids++;
+        }
+    }
+
+    return num_of_ids;
+}
+
 /* Concatenates argv with spaces in between */
 static uint32_t concatenate_argv(uint16_t args, char *input[],
         source_buffer *output)
 {
+    if (args == 1)
+    {
+        output->data[0] = xstrdup(input[0]);
+        return strlen(output->data[0]);
+    }
+
     int total = args;
     for (int i = 0; i < args; i++)
     {
@@ -311,6 +382,32 @@ static uint32_t concatenate_argv(uint16_t args, char *input[],
     return (strlen(output->data[0]));
 }
 
+void write_to_stdout(source_buffer *src)
+{
+    int type;
+    bool type_found = false;
+    if (options.type)
+    {
+        for (int i = 0; i < src->num_types; i++)
+        {
+            if (!strcmp(src->types[i].type, options.type))
+            {
+                type = i;
+                type_found = true;
+            }
+        }
+    }
+    if (!type_found)
+    {
+        type = find_write_type(src);
+    }
+    write(STDOUT_FILENO, src->data[type], src->len[type]);
+    if (!options.newline)
+    {
+        printf("\n");
+    }
+}
+
 int main(int argc, char *argv[])
 {
     parse_options(argc, argv);
@@ -319,6 +416,7 @@ int main(int argc, char *argv[])
 
     source_buffer *src = clip->selection_s;
     offer_buffer *ofr = clip->selection_o;
+
     if (options.action == COPY)
     {
         if (options.clear)
@@ -328,22 +426,29 @@ int main(int argc, char *argv[])
             exit(EXIT_SUCCESS);
         }
 
-        if (argv[optind])
+        else if (argv[optind])
         {
-            if ((argc - optind) == 1)
-            {
-                src->data[0] = xstrdup(argv[optind]);
-                src->len[0] = strlen(argv[optind]);
-            }
-            else
-            {
-                /* Pass everything not handled by getopt or main */
-                src->len[0] = concatenate_argv((argc - optind), (argv + optind), src);
-            }
+            /* Pass everything not handled by getopt or main */
+            src->len[0] = concatenate_argv((argc - optind), (argv + optind), src);
         }
         else
         {
             get_stdin(src);
+        }
+
+        if (options.id)
+        {
+            sqlite3 *db = database_init();
+            uint32_t id = atoi(src->data[0]);
+            if (!id)
+            {
+                printf("Invalid input for --id\n");
+            }
+            if (!database_get_source(db, id, src))
+            {
+                printf("ID: %d not found\n", id);
+                exit(EXIT_FAILURE);
+            }
         }
 
         if (options.newline)
@@ -355,7 +460,11 @@ int main(int argc, char *argv[])
             src->offer_once = true;
         }
 
-        if (options.type)
+        if (options.id)
+        {
+            /* Empty */
+        }
+        else if (options.type)
         {
             src->types[0].type = options.type;
         }
@@ -383,6 +492,49 @@ int main(int argc, char *argv[])
     }
     else if (options.action == PASTE)
     {
+        if (options.id)
+        {
+            sqlite3 *db = database_init();
+            if (argv[optind])
+            {
+                uint32_t *ids = xmalloc(sizeof(uint32_t) * (argc - optind));
+                int num_of_ids =
+                    get_ids((argc - optind), (argv + optind), ids);
+                ids = xrealloc(ids, sizeof(uint32_t) * num_of_ids);
+                for (int i = 0; i < num_of_ids; i++)
+                {
+                    if (database_get_source(db, ids[i], src))
+                    {
+                        write_to_stdout(src);
+                        source_clear(src);
+                    }
+                    else
+                    {
+                        fprintf(stderr, "ID: %d not found\n", ids[i]);
+                    }
+                }
+            }
+            else
+            {
+                uint32_t *ids = xmalloc(sizeof(uint32_t) * 100);
+                uint32_t num_of_ids = seperate_stdin_into_ids(ids);
+
+                for (int i = 0; i < num_of_ids; i++)
+                {
+                    if (database_get_source(db, ids[i], src))
+                    {
+                        write_to_stdout(src);
+                        source_clear(src);
+                    }
+                    else
+                    {
+                        fprintf(stderr, "ID: %d not found\n", ids[i]);
+                    }
+                }
+            }
+            exit(EXIT_SUCCESS);
+        }
+
         clip_watch(clip);
         wl_display_roundtrip(clip->display);
         if (!ofr->offer)
@@ -406,36 +558,7 @@ int main(int argc, char *argv[])
             exit(EXIT_SUCCESS);
         }
 
-        int type = 0;
-        bool type_found = false;
-
-        if (options.type)
-        {
-            for (int i = 0; i < src->num_types; i++)
-            {
-                if (!strcmp(src->types[i].type, options.type))
-                {
-                    type = i;
-                    type_found = true;
-                }
-            }
-            if (!type_found)
-            {
-                fprintf(stderr, "Could not find mime type: %s\n", options.type);
-                exit(EXIT_FAILURE);
-            }
-        }
-        else
-        {
-            type = find_write_type(src);
-        }
-
-        write(STDOUT_FILENO, src->data[type], src->len[type]);
-
-        if (!options.newline)
-        {
-            printf("\n");
-        }
+        write_to_stdout(src);
     }
     else if (options.action == SEARCH)
     {
@@ -463,10 +586,30 @@ int main(int argc, char *argv[])
         {
             source_clear(src);
             database_get_source(db, ids[i], src);
-            printf("ID: %d", ids[i]);
+
+            if (!options.snippets)
+            {
+                if (!options.list)
+                {
+                    printf("ID: ");
+                }
+                printf("%d", ids[i]);
+            }
+            if (!options.id && !options.snippets)
+            {
+                printf(" ");
+            }
             if (!options.id)
             {
-                printf(" \"%s\"...", src->snippet);
+                if (!options.list)
+                {
+                    printf("\"");
+                }
+                printf("%s", src->snippet);
+                if (!options.list)
+                {
+                    printf("...\"");
+                }
             }
             printf("\n");
         }
@@ -474,6 +617,5 @@ int main(int argc, char *argv[])
         free(ids);
         database_destroy(db);
     }
-
     clip_destroy(clip);
 }

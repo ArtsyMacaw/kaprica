@@ -252,10 +252,17 @@ uint16_t database_find_matching_source(sqlite3 *db, void *match,
     return counter;
 }
 
-void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
+bool database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
 {
     bind_statement(select_snippet, ID_BINDING, &id, 0, INT);
-    execute_statement(select_snippet);
+    int ret = execute_statement(select_snippet);
+
+    if (ret == SQLITE_DONE)
+    {
+        sqlite3_reset(select_snippet);
+        sqlite3_clear_bindings(select_snippet);
+        return false;
+    }
 
     const char *tmp_snippet =
         (char *) sqlite3_column_text(select_snippet, (MATCH_BINDING - 1));
@@ -303,6 +310,8 @@ void database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
 
     sqlite3_reset(select_source);
     sqlite3_clear_bindings(select_source);
+
+    return true;
 }
 
 sqlite3 *database_init(void)
