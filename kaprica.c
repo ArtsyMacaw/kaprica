@@ -627,7 +627,7 @@ int main(int argc, char *argv[])
         for (int i = 0; i < found; i++)
         {
             source_clear(src);
-            database_get_source(db, ids[i], src);
+            char *snippet = database_get_snippet(db, ids[i]);
 
             if (!options.snippets)
             {
@@ -647,13 +647,15 @@ int main(int argc, char *argv[])
                 {
                     printf("\"");
                 }
-                printf("%s", src->snippet);
+                printf("%s", snippet);
                 if (!options.list)
                 {
                     printf("...\"");
                 }
             }
             printf("\n");
+
+            free(snippet);
         }
         free(ids);
         database_destroy(db);

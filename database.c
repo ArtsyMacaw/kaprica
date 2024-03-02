@@ -265,6 +265,26 @@ uint16_t database_find_matching_source(sqlite3 *db, void *match,
     return counter;
 }
 
+char *database_get_snippet(sqlite3 *db, uint32_t id)
+{
+    bind_statement(select_snippet, ID_BINDING, &id, 0, INT);
+    execute_statement(select_snippet);
+
+    const char *tmp_snippet =
+        (char *) sqlite3_column_text(select_snippet, (SNIPPET_BINDING - 1));
+    if (!tmp_snippet)
+    {
+        fprintf(stderr, "Failed to allocate memory\n");
+        exit(EXIT_FAILURE);
+    }
+     char *snippet = xstrdup(tmp_snippet);
+
+    sqlite3_reset(select_snippet);
+    sqlite3_clear_bindings(select_snippet);
+
+    return snippet;
+}
+
 bool database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
 {
     bind_statement(select_snippet, ID_BINDING, &id, 0, INT);
