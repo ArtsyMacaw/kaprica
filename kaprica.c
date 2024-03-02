@@ -21,8 +21,8 @@ enum verb
 {
     COPY,
     PASTE,
-    SEARCH
-    // Delete
+    SEARCH,
+    DELETE
 };
 
 struct config
@@ -35,6 +35,7 @@ struct config
     bool paste_once;
     bool list;
     bool id;
+    char accept;
     bool snippets;
     bool search_by_type;
     char *seat;
@@ -48,6 +49,7 @@ static struct config options = {.foreground = false,
                                 .newline = false,
                                 .list = false,
                                 .id = false,
+                                .accept = 'n',
                                 .snippets = false,
                                 .search_by_type = false,
                                 .clear = false,
@@ -61,9 +63,10 @@ static const char help[] =
     "Usage: kapc [command] [options] <data>\n"
     "\n"
     "Commands:\n"
-    "    copy  - Copies data to the Wayland clipboard\n"
-    "    paste - Retrieves data from either the clipboard or history\n"
+    "    copy   - Copies data to the Wayland clipboard\n"
+    "    paste  - Retrieves data from either the clipboard or history\n"
     "    search - Searches through history database\n"
+    "    delete - Deletes an entry from the history database\n"
     "Options:\n"
     "    -h, --help            Show this help message\n"
     "    -v, --version         Show version number\n"
@@ -139,6 +142,25 @@ static const char search_help[] =
     "    -t, --type            Search by MIME type\n"
     "    -L, --list            Output in machine-readable format\n";
 
+static const struct option delete[] = {{"help", no_argument, NULL, 'h'},
+                                      {"version", no_argument, NULL, 'v'},
+                                      {"limit", required_argument, NULL, 'l'},
+                                      {"id", no_argument, NULL, 'i'},
+                                      {"type", no_argument, NULL, 't'},
+                                      {"accept", no_argument, NULL, 'a'},
+                                      {0, 0, 0, 0}};
+
+static const char delete_help[] =
+    "Usage: kapc delete [options] <text to delete>\n"
+    "\n"
+    "Options:\n"
+    "    -h, --help            Show this help message\n"
+    "    -v, --version         Show version number\n"
+    "    -l, --limit <max>     Limit the number of entries deleted\n"
+    "    -a, --accept          Don't ask for confirmation when deleting entries\n"
+    "    -t, --type            Delete by MIME type\n"
+    "    -i, --id              Delete one or more id's from history\n";
+
 static void parse_options(int argc, char *argv[])
 {
     if (argc < 2)
@@ -167,6 +189,12 @@ static void parse_options(int argc, char *argv[])
         action = (void *)search;
         opt_string = "hvl:itLs";
         options.action = SEARCH;
+    }
+    else if (!strcmp(argv[1], "delete"))
+    {
+        action = (void *)delete;
+        opt_string = "hvl:ita";
+        options.action = DELETE;
     }
     else if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))
     {
@@ -210,14 +238,21 @@ static void parse_options(int argc, char *argv[])
             options.list = true;
             break;
         case 'l':
-            if (options.action == SEARCH)
+            if (options.action == SEARCH || options.action == DELETE)
             {
-                options.limit = atoi(optarg);
-                if (options.limit <= 0)
+                if (!strcmp(optarg, "all"))
                 {
-                    fprintf(stderr,
-                            "--limit requires a positive integer as an argument\n");
-                    exit(EXIT_FAILURE);
+                    options.limit = -1;
+                }
+                else
+                {
+                    options.limit = atoi(optarg);
+                    if (options.limit <= 0)
+                    {
+                        fprintf(stderr,
+                                "--limit requires a positive integer as an argument\n");
+                        exit(EXIT_FAILURE);
+                    }
                 }
             }
             else
@@ -227,6 +262,9 @@ static void parse_options(int argc, char *argv[])
             break;
         case 'i':
             options.id = true;
+            break;
+        case 'a':
+            options.accept = 'a';
             break;
         case 'n':
             options.newline = true;
@@ -269,6 +307,10 @@ static void parse_options(int argc, char *argv[])
             else if (options.action == SEARCH)
             {
                 printf("%s", search_help);
+            }
+            else if (options.action == DELETE)
+            {
+                printf("%s", delete_help);
             }
             exit(EXIT_FAILURE);
         }
@@ -613,7 +655,58 @@ int main(int argc, char *argv[])
             }
             printf("\n");
         }
+        free(ids);
+        database_destroy(db);
+    }
+    else if (options.action == DELETE)
+    {
+        sqlite3 *db = database_init();
+        if (argv[optind] && !options.id)
+        {
+            /* Pass everything not handled by getopt or main */
+            src->len[0] = concatenate_argv((argc - optind), (argv + optind), src);
+        }
 
+        uint32_t *ids = xmalloc(sizeof(uint32_t) * options.limit);
+        uint16_t found = 0;
+        if (options.id)
+        {
+            if (argv[optind])
+            {
+                found = get_ids((argc - optind), (argv + optind), ids);
+            }
+            else
+            {
+                found = seperate_stdin_into_ids(ids);
+            }
+        }
+        else
+        {
+            found = database_find_matching_source(db, src->data[0],
+                    src->len[0], options.limit, ids, options.search_by_type);
+        }
+        char *input = NULL;
+        char tmp = options.accept;
+
+        for (int i = 0; i < found; i++)
+        {
+            source_clear(src);
+            database_get_source(db, ids[i], src);
+            if (tmp != 'A' && tmp != 'a')
+            {
+                printf("%s\n", src->snippet);
+                printf("Delete? (Yes/No/All): ");
+
+                getline(&input, &(size_t){0}, stdin);
+                tmp = input[0];
+                free (input);
+            }
+            if (tmp == 'Y' || tmp == 'y' ||
+                    tmp == 'A' || tmp == 'a')
+            {
+                database_delete_entry(db, ids[i]);
+            }
+        }
         free(ids);
         database_destroy(db);
     }

@@ -14,7 +14,7 @@ static sqlite3_stmt *create_main_table, *create_content_table,
     *insert_source_entry, *insert_source_content, *delete_old_source_entries,
     *pragma_foreign_keys, *select_latest_source, *select_source,
     *find_matching_sources, *select_snippet, *find_matching_types,
-    *pragma_journal_wal;
+    *pragma_journal_wal, *delete_source_entry;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -93,6 +93,10 @@ static void prepare_all_statements(sqlite3 *db)
         "    WHERE timestamp < (date('now', ? || ' days'));";
     prepare_statement(db, remove_old_source_entry, &delete_old_source_entries);
 
+    const char remove_source_entry[] = "DELETE FROM clipboard_history"
+                                       "    WHERE history_id = ?1;";
+    prepare_statement(db, remove_source_entry, &delete_source_entry);
+
     const char get_latest_source[] = "SELECT history_id FROM clipboard_history"
                                      "    ORDER BY timestamp DESC"
                                      "    LIMIT 1;";
@@ -163,6 +167,15 @@ static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
         fprintf(stderr, "Database error: %s\n", sqlite3_errstr(ret));
         exit(EXIT_FAILURE);
     }
+}
+
+void database_delete_entry(sqlite3 *db, uint32_t id)
+{
+    bind_statement(delete_source_entry, ID_BINDING, &id, 0, INT);
+    execute_statement(delete_source_entry);
+
+    sqlite3_reset(delete_source_entry);
+    sqlite3_clear_bindings(delete_source_entry);
 }
 
 void database_insert_source(sqlite3 *db, source_buffer *src)
