@@ -40,11 +40,9 @@ static void data_control_source_cancelled_handler(
 }
 
 const struct zwlr_data_control_source_v1_listener
-    zwlr_data_control_source_v1_listener =
-{
+    zwlr_data_control_source_v1_listener = {
         .send = data_control_source_send_handler,
-        .cancelled = data_control_source_cancelled_handler
-};
+        .cancelled = data_control_source_cancelled_handler};
 
 void clip_clear_selection(clipboard *clip)
 {

@@ -114,8 +114,9 @@ static void prepare_all_statements(sqlite3 *db)
                                "    WHERE data LIKE '%' || ?1 || '%';";
     prepare_statement(db, find_source, &find_matching_sources);
 
-    const char find_source_type[] = "SELECT entry FROM content"
-                                    "    WHERE mime_type LIKE '%' || ?1 || '%';";
+    const char find_source_type[] =
+        "SELECT entry FROM content"
+        "    WHERE mime_type LIKE '%' || ?1 || '%';";
     prepare_statement(db, find_source_type, &find_matching_types);
 }
 
@@ -181,7 +182,7 @@ void database_delete_entry(sqlite3 *db, uint32_t id)
 void database_insert_source(sqlite3 *db, source_buffer *src)
 {
     bind_statement(insert_source_entry, SNIPPET_BINDING, src->snippet,
-            strlen(src->snippet), TEXT);
+                   strlen(src->snippet), TEXT);
 
     execute_statement(insert_source_entry);
 
@@ -216,8 +217,8 @@ uint32_t database_get_latest_source_id(sqlite3 *db)
 }
 
 uint16_t database_find_matching_source(sqlite3 *db, void *match,
-        uint32_t length, uint16_t num_of_entries, uint32_t* list_of_ids,
-        bool mime_type)
+                                       uint32_t length, uint16_t num_of_entries,
+                                       uint32_t *list_of_ids, bool mime_type)
 {
     sqlite3_stmt *search;
 
@@ -230,15 +231,13 @@ uint16_t database_find_matching_source(sqlite3 *db, void *match,
         search = find_matching_sources;
     }
 
-    bind_statement(search, MATCH_BINDING, match,
-            length, BLOB);
+    bind_statement(search, MATCH_BINDING, match, length, BLOB);
 
     int counter = 0;
 
-    while(execute_statement(search) != SQLITE_DONE)
+    while (execute_statement(search) != SQLITE_DONE)
     {
-        uint32_t tmp =
-            sqlite3_column_int(search, (ENTRY_BINDING - 1));
+        uint32_t tmp = sqlite3_column_int(search, (ENTRY_BINDING - 1));
 
         // Ignore repeat matches for the same entry.
         // There's probably a way to do this solely with SQL,
@@ -271,13 +270,13 @@ char *database_get_snippet(sqlite3 *db, uint32_t id)
     execute_statement(select_snippet);
 
     const char *tmp_snippet =
-        (char *) sqlite3_column_text(select_snippet, (SNIPPET_BINDING - 1));
+        (char *)sqlite3_column_text(select_snippet, (SNIPPET_BINDING - 1));
     if (!tmp_snippet)
     {
         fprintf(stderr, "Failed to allocate memory\n");
         exit(EXIT_FAILURE);
     }
-     char *snippet = xstrdup(tmp_snippet);
+    char *snippet = xstrdup(tmp_snippet);
 
     sqlite3_reset(select_snippet);
     sqlite3_clear_bindings(select_snippet);
@@ -298,7 +297,7 @@ bool database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
     }
 
     const char *tmp_snippet =
-        (char *) sqlite3_column_text(select_snippet, (MATCH_BINDING - 1));
+        (char *)sqlite3_column_text(select_snippet, (MATCH_BINDING - 1));
     if (!tmp_snippet)
     {
         fprintf(stderr, "Failed to allocate memory\n");
@@ -324,8 +323,7 @@ bool database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
             exit(EXIT_FAILURE);
         }
         src->data[src->num_types] = xmalloc(src->len[src->num_types]);
-        memcpy(src->data[src->num_types], tmp_blob,
-               src->len[src->num_types]);
+        memcpy(src->data[src->num_types], tmp_blob, src->len[src->num_types]);
 
         const char *tmp_text =
             (char *)sqlite3_column_text(select_source, (MIME_TYPE_BINDING - 1));
@@ -354,8 +352,7 @@ sqlite3 *database_init(void)
     sqlite3_open("./test.db", &db);
     if (!db)
     {
-        fprintf(stderr, "Failed to create database: %s\n",
-                sqlite3_errmsg(db));
+        fprintf(stderr, "Failed to create database: %s\n", sqlite3_errmsg(db));
         exit(EXIT_FAILURE);
     }
     prepare_bootstrap_statements(db);

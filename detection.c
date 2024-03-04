@@ -81,8 +81,7 @@ static bool is_utf8_text(const char *mime_type)
 
 static bool is_explicit_text(const char *mime_type)
 {
-    if(!strncmp("text/_moz_htmlinfo", mime_type,
-            strlen("text/_moz_htmlinfo")))
+    if (!strncmp("text/_moz_htmlinfo", mime_type, strlen("text/_moz_htmlinfo")))
     {
         return false;
     }
@@ -97,9 +96,8 @@ void guess_mime_types(source_buffer *src)
 {
     char *exact_type = find_exact_type(src->data[0], src->len[0]);
 
-    if (is_text(src->data[0], src->len[0]) ||
-            is_utf8_text(exact_type) ||
-            is_explicit_text(exact_type))
+    if (is_text(src->data[0], src->len[0]) || is_utf8_text(exact_type) ||
+        is_explicit_text(exact_type))
     {
         src->types[0] = (mime_type){.type = "TEXT", .pos = 0};
         src->types[1] = (mime_type){.type = "STRING", .pos = 0};
@@ -123,8 +121,7 @@ void guess_mime_types(source_buffer *src)
     }
     else
     {
-        src->types[0] = (mime_type){
-            .type = exact_type, .pos = 0};
+        src->types[0] = (mime_type){.type = exact_type, .pos = 0};
         src->num_types++;
     }
 }
@@ -176,7 +173,7 @@ int find_write_type(source_buffer *src)
 void generate_stamp(source_buffer *src)
 {
     time_t ltime;
-    ltime=time(NULL);
+    ltime = time(NULL);
     src->snippet = xstrdup(asctime(localtime(&ltime)));
     /* Replace '\n' with a space */
     src->snippet[strlen(src->snippet) - 1] = ' ';
@@ -191,28 +188,26 @@ void get_snippet(source_buffer *src)
     int snip_type = find_write_type(src);
 
     if (!is_utf8_text(src->types[snip_type].type) &&
-            !is_explicit_text(src->types[snip_type].type))
+        !is_explicit_text(src->types[snip_type].type))
     {
         generate_stamp(src);
     }
     else
     {
         int j = 0;
-        for (int i = 0; i < src->len[snip_type] &&
-            j < (SNIPPET_SIZE - 1); i++)
+        for (int i = 0; i < src->len[snip_type] && j < (SNIPPET_SIZE - 1); i++)
         {
             /* Replace newline characters with \ so the snippet remains all
-            * on one line when shown */
-            if (((char *) src->data[snip_type])[i] == '\n')
+             * on one line when shown */
+            if (((char *)src->data[snip_type])[i] == '\n')
             {
                 src->snippet[j] = '\\';
                 j++;
             }
             /* Ignore null characters that come before the end of the string */
-            else if (((char *) src->data[snip_type])[i] != '\0')
+            else if (((char *)src->data[snip_type])[i] != '\0')
             {
-                src->snippet[j] =
-                    ((char *) src->data[snip_type])[i];
+                src->snippet[j] = ((char *)src->data[snip_type])[i];
                 j++;
             }
         }

@@ -12,8 +12,8 @@ void database_delete_entry(sqlite3 *db, uint32_t id);
 char *database_get_snippet(sqlite3 *db, uint32_t id);
 bool database_get_source(sqlite3 *db, uint32_t id, source_buffer *src);
 uint16_t database_find_matching_source(sqlite3 *db, void *match,
-        uint32_t length, uint16_t num_of_entries, uint32_t *list_of_ids,
-        bool mime_type);
+                                       uint32_t length, uint16_t num_of_entries,
+                                       uint32_t *list_of_ids, bool mime_type);
 uint32_t database_destroy_old_entries(sqlite3 *db, int32_t days);
 void database_destroy(sqlite3 *db);
 

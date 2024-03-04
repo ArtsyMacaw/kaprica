@@ -6,11 +6,11 @@
 static void global_add(void *data, struct wl_registry *registry, uint32_t name,
                        const char *interface, uint32_t version)
 {
-    clipboard *clip = (clipboard *) data;
+    clipboard *clip = (clipboard *)data;
     if (strcmp(interface, "zwlr_data_control_manager_v1") == 0)
     {
-        clip->cmng = wl_registry_bind(registry, name,
-                                &zwlr_data_control_manager_v1_interface, 1);
+        clip->cmng = wl_registry_bind(
+            registry, name, &zwlr_data_control_manager_v1_interface, 1);
     }
     else if (strcmp(interface, "wl_seat") == 0)
     {
@@ -24,11 +24,8 @@ static void global_remove(void *data, struct wl_registry *registry,
     /* Empty */
 }
 
-struct wl_registry_listener registry_listener =
-{
-    .global = global_add,
-    .global_remove = global_remove
-};
+struct wl_registry_listener registry_listener = {
+    .global = global_add, .global_remove = global_remove};
 
 clipboard *clip_init(void)
 {
@@ -44,7 +41,7 @@ clipboard *clip_init(void)
     }
 
     struct wl_registry *registry = wl_display_get_registry(clip->display);
-    wl_registry_add_listener(registry, &registry_listener, (void *) clip);
+    wl_registry_add_listener(registry, &registry_listener, (void *)clip);
 
     wl_display_roundtrip(clip->display);
     if (!clip->cmng)
@@ -53,7 +50,8 @@ clipboard *clip_init(void)
         exit(EXIT_FAILURE);
     }
 
-    clip->dmng = zwlr_data_control_manager_v1_get_data_device(clip->cmng, clip->seat);
+    clip->dmng =
+        zwlr_data_control_manager_v1_get_data_device(clip->cmng, clip->seat);
 
     return clip;
 }

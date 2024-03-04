@@ -122,13 +122,13 @@ static const char paste_help[] =
     "    -t, --type <type>     Manually specify MIME type to paste\n";
 
 static const struct option search[] = {{"help", no_argument, NULL, 'h'},
-                                      {"version", no_argument, NULL, 'v'},
-                                      {"limit", required_argument, NULL, 'l'},
-                                      {"id", no_argument, NULL, 'i'},
-                                      {"snippet", no_argument, NULL, 's'},
-                                      {"list", no_argument, NULL, 'L'},
-                                      {"type", no_argument, NULL, 't'},
-                                      {0, 0, 0, 0}};
+                                       {"version", no_argument, NULL, 'v'},
+                                       {"limit", required_argument, NULL, 'l'},
+                                       {"id", no_argument, NULL, 'i'},
+                                       {"snippet", no_argument, NULL, 's'},
+                                       {"list", no_argument, NULL, 'L'},
+                                       {"type", no_argument, NULL, 't'},
+                                       {0, 0, 0, 0}};
 
 static const char search_help[] =
     "Usage: kapc search [options]\n"
@@ -136,19 +136,20 @@ static const char search_help[] =
     "Options:\n"
     "    -h, --help            Show this help message\n"
     "    -v, --version         Show version number\n"
-    "    -l, --limit <max>     Limit the number of entries returned from the search\n"
+    "    -l, --limit <max>     Limit the number of entries returned from the "
+    "search\n"
     "    -i, --id              Show only the ids of the entries found\n"
     "    -s, --snippet         Show only the snippets of the entries found\n"
     "    -t, --type            Search by MIME type\n"
     "    -L, --list            Output in machine-readable format\n";
 
 static const struct option delete[] = {{"help", no_argument, NULL, 'h'},
-                                      {"version", no_argument, NULL, 'v'},
-                                      {"limit", required_argument, NULL, 'l'},
-                                      {"id", no_argument, NULL, 'i'},
-                                      {"type", no_argument, NULL, 't'},
-                                      {"accept", no_argument, NULL, 'a'},
-                                      {0, 0, 0, 0}};
+                                       {"version", no_argument, NULL, 'v'},
+                                       {"limit", required_argument, NULL, 'l'},
+                                       {"id", no_argument, NULL, 'i'},
+                                       {"type", no_argument, NULL, 't'},
+                                       {"accept", no_argument, NULL, 'a'},
+                                       {0, 0, 0, 0}};
 
 static const char delete_help[] =
     "Usage: kapc delete [options] <text to delete>\n"
@@ -157,7 +158,8 @@ static const char delete_help[] =
     "    -h, --help            Show this help message\n"
     "    -v, --version         Show version number\n"
     "    -l, --limit <max>     Limit the number of entries deleted\n"
-    "    -a, --accept          Don't ask for confirmation when deleting entries\n"
+    "    -a, --accept          Don't ask for confirmation when deleting "
+    "entries\n"
     "    -t, --type            Delete by MIME type\n"
     "    -i, --id              Delete one or more id's from history\n";
 
@@ -249,8 +251,8 @@ static void parse_options(int argc, char *argv[])
                     options.limit = atoi(optarg);
                     if (options.limit <= 0)
                     {
-                        fprintf(stderr,
-                                "--limit requires a positive integer as an argument\n");
+                        fprintf(stderr, "--limit requires a positive integer "
+                                        "as an argument\n");
                         exit(EXIT_FAILURE);
                     }
                 }
@@ -319,15 +321,15 @@ static void parse_options(int argc, char *argv[])
     optind++;
 }
 
-static uint32_t trim_newline(void* data, uint32_t length)
+static uint32_t trim_newline(void *data, uint32_t length)
 {
     /* Check last two bytes for newline in case data
      * is null ended */
-    if (((char *) data)[length - 1] == '\n')
+    if (((char *)data)[length - 1] == '\n')
     {
         length -= 1;
     }
-    else if (((char *) data)[length - 2] == '\n')
+    else if (((char *)data)[length - 2] == '\n')
     {
         length -= 2;
     }
@@ -377,7 +379,7 @@ static uint32_t seperate_stdin_into_ids(uint32_t *ids)
     ssize_t nread = 0;
     char *token = NULL;
 
-    while((nread = getline(&token, &len, stdin)) != -1)
+    while ((nread = getline(&token, &len, stdin)) != -1)
     {
         tmp = atoi(token);
         if (!tmp)
@@ -396,7 +398,7 @@ static uint32_t seperate_stdin_into_ids(uint32_t *ids)
 
 /* Concatenates argv with spaces in between */
 static uint32_t concatenate_argv(uint16_t args, char *input[],
-        source_buffer *output)
+                                 source_buffer *output)
 {
     if (args == 1)
     {
@@ -411,7 +413,7 @@ static uint32_t concatenate_argv(uint16_t args, char *input[],
     }
     output->data[0] = xmalloc((sizeof(char) * total) + 1);
     /* strcat requires string to be null-ended */
-    ((char *) output->data[0])[0] = '\0';
+    ((char *)output->data[0])[0] = '\0';
 
     for (int i = 0; i < args; i++)
     {
@@ -471,7 +473,8 @@ int main(int argc, char *argv[])
         else if (argv[optind])
         {
             /* Pass everything not handled by getopt or main */
-            src->len[0] = concatenate_argv((argc - optind), (argv + optind), src);
+            src->len[0] =
+                concatenate_argv((argc - optind), (argv + optind), src);
         }
         else
         {
@@ -530,7 +533,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        while (wl_display_dispatch(clip->display) >= 0);
+        while (wl_display_dispatch(clip->display) >= 0)
+            ;
     }
     else if (options.action == PASTE)
     {
@@ -540,8 +544,7 @@ int main(int argc, char *argv[])
             if (argv[optind])
             {
                 uint32_t *ids = xmalloc(sizeof(uint32_t) * (argc - optind));
-                int num_of_ids =
-                    get_ids((argc - optind), (argv + optind), ids);
+                int num_of_ids = get_ids((argc - optind), (argv + optind), ids);
                 ids = xrealloc(ids, sizeof(uint32_t) * num_of_ids);
                 for (int i = 0; i < num_of_ids; i++)
                 {
@@ -615,14 +618,15 @@ int main(int argc, char *argv[])
             else
             {
                 /* Pass everything not handled by getopt or main */
-                src->len[0] = concatenate_argv((argc - optind), (argv + optind), src);
+                src->len[0] =
+                    concatenate_argv((argc - optind), (argv + optind), src);
             }
         }
 
         uint32_t *ids = xmalloc(sizeof(uint32_t) * options.limit);
-        uint16_t found =
-            database_find_matching_source(db, src->data[0],
-                    src->len[0], options.limit, ids, options.search_by_type);
+        uint16_t found = database_find_matching_source(
+            db, src->data[0], src->len[0], options.limit, ids,
+            options.search_by_type);
 
         for (int i = 0; i < found; i++)
         {
@@ -666,7 +670,8 @@ int main(int argc, char *argv[])
         if (argv[optind] && !options.id)
         {
             /* Pass everything not handled by getopt or main */
-            src->len[0] = concatenate_argv((argc - optind), (argv + optind), src);
+            src->len[0] =
+                concatenate_argv((argc - optind), (argv + optind), src);
         }
 
         uint32_t *ids = xmalloc(sizeof(uint32_t) * options.limit);
@@ -684,8 +689,9 @@ int main(int argc, char *argv[])
         }
         else
         {
-            found = database_find_matching_source(db, src->data[0],
-                    src->len[0], options.limit, ids, options.search_by_type);
+            found = database_find_matching_source(db, src->data[0], src->len[0],
+                                                  options.limit, ids,
+                                                  options.search_by_type);
         }
         char *input = NULL;
         char tmp = options.accept;
@@ -701,10 +707,9 @@ int main(int argc, char *argv[])
 
                 getline(&input, &(size_t){0}, stdin);
                 tmp = input[0];
-                free (input);
+                free(input);
             }
-            if (tmp == 'Y' || tmp == 'y' ||
-                    tmp == 'A' || tmp == 'a')
+            if (tmp == 'Y' || tmp == 'y' || tmp == 'A' || tmp == 'a')
             {
                 database_delete_entry(db, ids[i]);
             }

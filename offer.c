@@ -36,10 +36,8 @@ data_control_offer_mime_handler(void *data,
 }
 
 const struct zwlr_data_control_offer_v1_listener
-    zwlr_data_control_offer_v1_listener =
-{
-    .offer = data_control_offer_mime_handler
-};
+    zwlr_data_control_offer_v1_listener = {.offer =
+                                               data_control_offer_mime_handler};
 
 static void data_control_device_selection_handler(
     void *data, struct zwlr_data_control_device_v1 *control_device,
@@ -75,13 +73,11 @@ static void data_control_device_data_offer_handler(
 }
 
 const struct zwlr_data_control_device_v1_listener
-    zwlr_data_control_device_v1_listener =
-{
+    zwlr_data_control_device_v1_listener = {
         .data_offer = data_control_device_data_offer_handler,
         .selection = data_control_device_selection_handler,
         .primary_selection = data_control_device_primary_selection_handler,
-        .finished = data_control_device_finished_handler
-};
+        .finished = data_control_device_finished_handler};
 
 void sync_buffers(clipboard *clip)
 {
@@ -94,11 +90,9 @@ void sync_buffers(clipboard *clip)
         if (!ofr->invalid_data[i])
         {
             src->data[src->num_types] = xmalloc(ofr->len[i]);
-            memcpy(src->data[src->num_types], ofr->data[i],
-                   ofr->len[i]);
+            memcpy(src->data[src->num_types], ofr->data[i], ofr->len[i]);
             src->len[src->num_types] = ofr->len[i];
-            src->types[src->num_types].type =
-                xstrdup(ofr->types[i].type);
+            src->types[src->num_types].type = xstrdup(ofr->types[i].type);
             src->num_types++;
         }
     }

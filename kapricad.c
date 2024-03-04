@@ -68,8 +68,7 @@ int main(int argc, char *argv[])
      * try to load last source from history, and if all else
      * fails just wait for selection to be set */
     bool db_is_not_empty = true;
-    while (!clip->selection_o->num_types
-            && !clip->selection_s->num_types)
+    while (!clip->selection_o->num_types && !clip->selection_s->num_types)
     {
         if (!clip->selection_o->offer && db_is_not_empty)
         {
