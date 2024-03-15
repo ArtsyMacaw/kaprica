@@ -73,6 +73,7 @@ source_buffer *source_init(void)
     src->offer_once = false;
     src->expired = false;
     src->num_types = 0;
+    src->thumbnail = NULL;
     return src;
 }
 
@@ -88,6 +89,10 @@ void source_destroy(source_buffer *src)
     {
         zwlr_data_control_source_v1_destroy(src->source);
     }
+    if (src->thumbnail)
+    {
+        free(src->thumbnail);
+    }
     free(src);
 }
 
@@ -102,4 +107,10 @@ void source_clear(source_buffer *src)
     free(src->snippet);
     src->num_types = 0;
     src->expired = false;
+    if (src->thumbnail)
+    {
+        free(src->thumbnail);
+        src->thumbnail = NULL;
+        src->thumbnail_len = 0;
+    }
 }

@@ -73,7 +73,8 @@ int main(int argc, char *argv[])
         if (!clip->selection_o->offer && db_is_not_empty)
         {
             printf("Loading from source database\n");
-            uint32_t id = database_get_latest_source_id(db);
+            uint32_t id;
+            database_get_latest_sources(db, 1, 0, &id);
             if (id)
             {
                 database_get_source(db, id, clip->selection_s);

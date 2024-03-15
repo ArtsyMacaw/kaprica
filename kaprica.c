@@ -624,7 +624,7 @@ int main(int argc, char *argv[])
         }
 
         uint32_t *ids = xmalloc(sizeof(uint32_t) * options.limit);
-        uint16_t found = database_find_matching_source(
+        uint16_t found = database_find_matching_sources(
             db, src->data[0], src->len[0], options.limit, ids,
             options.search_by_type);
 
@@ -689,7 +689,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            found = database_find_matching_source(db, src->data[0], src->len[0],
+            found = database_find_matching_sources(db, src->data[0], src->len[0],
                                                   options.limit, ids,
                                                   options.search_by_type);
         }

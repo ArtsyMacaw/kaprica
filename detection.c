@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <MagickWand/MagickWand.h>
 #include "xmalloc.h"
 #include "detection.h"
 #include "clipboard.h"
@@ -92,6 +93,15 @@ static bool is_explicit_text(const char *mime_type)
     return false;
 }
 
+static bool is_image(const char *mime_type)
+{
+    if (!strncmp("image/", mime_type, strlen("image/")))
+    {
+        return true;
+    }
+    return false;
+}
+
 void guess_mime_types(source_buffer *src)
 {
     char *exact_type = find_exact_type(src->data[0], src->len[0]);
@@ -135,8 +145,7 @@ int find_write_type(source_buffer *src)
         if (is_utf8_text(src->types[i].type))
         {
             utf8_text = i;
-        }
-        else if (is_explicit_text(src->types[i].type))
+        } else if (is_explicit_text(src->types[i].type))
         {
             explicit_text = i;
         }
@@ -170,7 +179,7 @@ int find_write_type(source_buffer *src)
 
 /* If there's no text version of the source generate a time
  * stamp and concatenate it with the first mime type for the snippet */
-void generate_stamp(source_buffer *src)
+static void generate_stamp(source_buffer *src)
 {
     time_t ltime;
     ltime = time(NULL);
@@ -213,4 +222,44 @@ void get_snippet(source_buffer *src)
         }
         src->snippet[j] = '\0';
     }
+}
+
+/* Generate a thumbnail of the first image in the source */
+void get_thumbnail(source_buffer *src)
+{
+    int type = -1;
+    for (int i = 0; i < src->num_types; i++)
+    {
+        if (is_image(src->types[i].type))
+        {
+            type = i;
+            break;
+        }
+    }
+
+    if (type == -1)
+    {
+        return;
+    }
+
+    MagickWand *wand = NewMagickWand();
+    MagickBooleanType status;
+    size_t length;
+    unsigned char *blob;
+
+    status = MagickReadImageBlob(wand, src->data[type], src->len[type]);
+    if (status == MagickFalse)
+    {
+        fprintf(stderr, "Failed to read image\n");
+    }
+
+    MagickSetImageFormat(wand, "jpeg");
+    MagickThumbnailImage(wand, 320, 100);
+    blob = MagickGetImageBlob(wand, &length);
+    src->thumbnail = xmalloc(length);
+    memcpy(src->thumbnail, blob, length);
+    src->thumbnail_len = length;
+
+    DestroyMagickWand(wand);
+    MagickWandTerminus();
 }

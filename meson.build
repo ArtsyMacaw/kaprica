@@ -22,6 +22,8 @@ cc = meson.get_compiler('c')
 
 sql = dependency('sqlite3', version: '>=3.6.19')
 wayland = dependency('wayland-client')
+gtk = dependency('gtk4')
+imagemagick = dependency('MagickWand')
 wayland_scanner = find_program('wayland-scanner')
 magic = cc.find_library('magic')
 
@@ -54,8 +56,9 @@ lib = static_library(
   'xmalloc.c',
   'detection.h',
   'detection.c',
-  dependencies: [wayland, sql, magic]
+  dependencies: [wayland, sql, magic, gtk, imagemagick]
 )
 
-executable('kapd', 'kapricad.c', link_with: lib, dependencies: wayland)
-executable('kapc', 'kaprica.c', link_with: lib, dependencies: wayland)
+executable('kapd', 'kapricad.c', link_with: lib)
+executable('kapc', 'kaprica.c', link_with: lib)
+executable('kapg', 'kapricag.c', link_with: lib, dependencies: gtk)

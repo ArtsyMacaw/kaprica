@@ -98,6 +98,7 @@ void sync_buffers(clipboard *clip)
     }
     src->snippet = calloc(sizeof(char), SNIPPET_SIZE);
     get_snippet(src);
+    get_thumbnail(src);
 }
 
 void clip_watch(clipboard *clip)
