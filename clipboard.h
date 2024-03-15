@@ -45,9 +45,9 @@ typedef struct
 {
     void *data[MAX_MIME_TYPES];
     mime_type types[MAX_MIME_TYPES];
-    uint32_t len[MAX_MIME_TYPES]; // Change to size_t?
+    size_t len[MAX_MIME_TYPES];
     bool invalid_data[MAX_MIME_TYPES];
-    uint32_t num_types;
+    uint8_t num_types;
     struct zwlr_data_control_offer_v1 *offer;
     clipboard_buffer buf;
 } offer_buffer;
@@ -57,20 +57,20 @@ typedef struct
 {
     void *data[MAX_MIME_TYPES];
     mime_type types[MAX_MIME_TYPES];
-    uint32_t len[MAX_MIME_TYPES]; // Change to size_t?
+    size_t len[MAX_MIME_TYPES];
     char *snippet;
     void *thumbnail;
-    uint32_t thumbnail_len; // Change to size_t?
+    size_t thumbnail_len;
     bool offer_once;
     bool expired;
-    uint32_t num_types;
+    uint8_t num_types;
     struct zwlr_data_control_source_v1 *source;
 } source_buffer;
 
 typedef struct
 {
-    source_buffer *selection_s;
-    offer_buffer *selection_o;
+    source_buffer *selection_source;
+    offer_buffer *selection_offer;
     struct wl_display *display;
     struct wl_seat *seat;
     struct zwlr_data_control_manager_v1 *cmng;

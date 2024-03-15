@@ -11,7 +11,7 @@
 #include "detection.h"
 #include "clipboard.h"
 
-static char *find_exact_type(const void *data, uint32_t length)
+static char *find_exact_type(const void *data, size_t length)
 {
     magic_t magic = magic_open(MAGIC_MIME_TYPE | MAGIC_RAW);
     if (!magic)
@@ -38,7 +38,7 @@ static char *find_exact_type(const void *data, uint32_t length)
     return type;
 }
 
-static bool is_text(const void *data, uint32_t length)
+static bool is_text(const void *data, size_t length)
 {
     magic_t magic = magic_open(MAGIC_MIME_ENCODING);
     if (!magic)
@@ -136,7 +136,7 @@ void guess_mime_types(source_buffer *src)
     }
 }
 
-int find_write_type(source_buffer *src)
+uint8_t find_write_type(source_buffer *src)
 {
     uint8_t utf8_text = 0, explicit_text = 0, any_text = 0, binary = 0;
 
@@ -145,7 +145,8 @@ int find_write_type(source_buffer *src)
         if (is_utf8_text(src->types[i].type))
         {
             utf8_text = i;
-        } else if (is_explicit_text(src->types[i].type))
+        }
+        else if (is_explicit_text(src->types[i].type))
         {
             explicit_text = i;
         }
@@ -187,14 +188,14 @@ static void generate_stamp(source_buffer *src)
     /* Replace '\n' with a space */
     src->snippet[strlen(src->snippet) - 1] = ' ';
 
-    int size = strlen(src->types[0].type) + strlen(src->snippet) + 1;
+    size_t size = strlen(src->types[0].type) + strlen(src->snippet) + 1;
     src->snippet = xrealloc(src->snippet, (size * sizeof(char)));
     src->snippet = strcat(src->snippet, src->types[0].type);
 }
 
 void get_snippet(source_buffer *src)
 {
-    int snip_type = find_write_type(src);
+    uint8_t snip_type = find_write_type(src);
 
     if (!is_utf8_text(src->types[snip_type].type) &&
         !is_explicit_text(src->types[snip_type].type))

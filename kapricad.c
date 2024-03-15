@@ -68,16 +68,17 @@ int main(int argc, char *argv[])
      * try to load last source from history, and if all else
      * fails just wait for selection to be set */
     bool db_is_not_empty = true;
-    while (!clip->selection_o->num_types && !clip->selection_s->num_types)
+    while (!clip->selection_offer->num_types &&
+           !clip->selection_source->num_types)
     {
-        if (!clip->selection_o->offer && db_is_not_empty)
+        if (!clip->selection_offer->offer && db_is_not_empty)
         {
             printf("Loading from source database\n");
-            uint32_t id;
+            int64_t id;
             database_get_latest_sources(db, 1, 0, &id);
             if (id)
             {
-                database_get_source(db, id, clip->selection_s);
+                database_get_source(db, id, clip->selection_source);
                 break;
             }
             db_is_not_empty = false;
@@ -85,10 +86,10 @@ int main(int argc, char *argv[])
         wl_display_dispatch(clip->display);
     }
 
-    if (!clip->selection_s->num_types)
+    if (!clip->selection_source->num_types)
     {
         clip_get_selection(clip);
-        database_insert_source(db, clip->selection_s);
+        database_insert_source(db, clip->selection_source);
     }
     clip_set_selection(clip);
 
@@ -96,14 +97,14 @@ int main(int argc, char *argv[])
     {
         prepare_read(clip->display);
 
-        if (clip->selection_s->expired)
+        if (clip->selection_source->expired)
         {
             wl_display_cancel_read(clip->display);
 
             clip_get_selection(clip);
             clip_set_selection(clip);
 
-            database_insert_source(db, clip->selection_s);
+            database_insert_source(db, clip->selection_source);
 
             prepare_read(clip->display);
         }

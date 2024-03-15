@@ -14,7 +14,7 @@ data_control_source_send_handler(void *data,
                                  const char *mime_type, int fd)
 {
     clipboard *clip = (clipboard *)data;
-    source_buffer *src = clip->selection_s;
+    source_buffer *src = clip->selection_source;
 
     for (int i = 0; i < src->num_types; i++)
     {
@@ -35,7 +35,7 @@ static void data_control_source_cancelled_handler(
     void *data, struct zwlr_data_control_source_v1 *data_src)
 {
     clipboard *clip = (clipboard *)data;
-    clip->selection_s->expired = true;
+    clip->selection_source->expired = true;
     zwlr_data_control_source_v1_destroy(data_src);
 }
 
@@ -51,7 +51,7 @@ void clip_clear_selection(clipboard *clip)
 
 void clip_set_selection(clipboard *clip)
 {
-    source_buffer *src = clip->selection_s;
+    source_buffer *src = clip->selection_source;
     struct zwlr_data_control_source_v1 *data_src =
         zwlr_data_control_manager_v1_create_data_source(clip->cmng);
     src->source = data_src;

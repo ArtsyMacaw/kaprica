@@ -36,8 +36,8 @@ static uint32_t offset = 0;
 static void clicked(GtkWidget *button, gpointer user_data)
 {
     clipboard *clip = clip_init();
-    uint32_t t = GPOINTER_TO_UINT(user_data);
-    database_get_source(db, t, clip->selection_s);
+    int64_t t = GPOINTER_TO_UINT(user_data);
+    database_get_source(db, t, clip->selection_source);
     clip_set_selection(clip);
 
     pid_t pid = fork();
@@ -55,7 +55,7 @@ static void clicked(GtkWidget *button, gpointer user_data)
 
 static void delete_entry(GtkWidget *button, gpointer user_data)
 {
-    uint32_t t = GPOINTER_TO_UINT(user_data);
+    int64_t t = GPOINTER_TO_UINT(user_data);
     database_delete_entry(db, t);
     gtk_widget_set_visible(gtk_widget_get_parent(button), FALSE);
 }
@@ -72,28 +72,31 @@ static GtkWidget *create_button_box()
     return button_box;
 }
 
-static GtkWidget *create_entry_button(uint32_t id, struct Widgets *widgets)
+static GtkWidget *create_entry_button(int64_t id, struct Widgets *widgets)
 {
     GtkWidget *button;
-    void *thumbnail = NULL,
-         *snippet = NULL;
-    uint32_t len = 0;
+    void *thumbnail = NULL, *snippet = NULL;
+    size_t len = 0;
 
     thumbnail = database_get_thumbnail(db, id, &len);
     if (len)
     {
-        /* Convert thumbnail into a gbytes structure so it converted into a texture */
+        /* Convert thumbnail into a gbytes structure so it converted into a
+         * texture */
         GBytes *pix_array = g_bytes_new(thumbnail, len);
         GdkTexture *texture = gdk_texture_new_from_bytes(pix_array, NULL);
-        GtkWidget *image = gtk_picture_new_for_paintable(GDK_PAINTABLE(texture));
+        GtkWidget *image =
+            gtk_picture_new_for_paintable(GDK_PAINTABLE(texture));
 
-        /* A lot of formatting code to left align the image and fill to fit the button */
+        /* A lot of formatting code to left align the image and fill to fit the
+         * button */
         gtk_widget_set_halign(image, GTK_ALIGN_START);
         gtk_widget_set_valign(image, GTK_ALIGN_FILL);
         gtk_widget_set_hexpand(image, TRUE);
         gtk_widget_set_vexpand(image, TRUE);
         gtk_picture_set_can_shrink(GTK_PICTURE(image), TRUE);
-        gtk_picture_set_content_fit(GTK_PICTURE(image), GTK_CONTENT_FIT_CONTAIN);
+        gtk_picture_set_content_fit(GTK_PICTURE(image),
+                                    GTK_CONTENT_FIT_CONTAIN);
         gtk_widget_set_size_request(image, 250, 80);
         gtk_widget_set_margin_start(image, 0);
         gtk_widget_set_margin_end(image, 0);
@@ -122,13 +125,15 @@ static GtkWidget *create_entry_button(uint32_t id, struct Widgets *widgets)
     gtk_widget_set_hexpand(button, TRUE);
 
     /* Copy the content and exit */
-    g_signal_connect(button, "clicked", G_CALLBACK(clicked), GUINT_TO_POINTER(id));
-    g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_window_destroy), GTK_WINDOW(widgets->window));
+    g_signal_connect(button, "clicked", G_CALLBACK(clicked),
+                     GUINT_TO_POINTER(id));
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(gtk_window_destroy),
+                             GTK_WINDOW(widgets->window));
 
     return button;
 }
 
-static GtkWidget *create_delete_button(uint32_t id)
+static GtkWidget *create_delete_button(int64_t id)
 {
     GtkWidget *button = gtk_button_new_from_icon_name("edit-delete");
 
@@ -137,12 +142,13 @@ static GtkWidget *create_delete_button(uint32_t id)
     gtk_widget_set_halign(button, GTK_ALIGN_END);
     gtk_widget_set_valign(button, GTK_ALIGN_FILL);
 
-    g_signal_connect(button, "clicked", G_CALLBACK(delete_entry), GUINT_TO_POINTER(id));
+    g_signal_connect(button, "clicked", G_CALLBACK(delete_entry),
+                     GUINT_TO_POINTER(id));
 
     return button;
 }
 
-static GtkWidget *create_button(uint32_t id, struct Widgets *widgets)
+static GtkWidget *create_button(int64_t id, struct Widgets *widgets)
 {
     GtkWidget *button_box = create_button_box();
     GtkWidget *button = create_entry_button(id, widgets);
@@ -154,14 +160,16 @@ static GtkWidget *create_button(uint32_t id, struct Widgets *widgets)
     return button_box;
 }
 
-static void load_more_entries(GtkScrolledWindow *scrolled_window, GtkPositionType pos, gpointer user_data)
+static void load_more_entries(GtkScrolledWindow *scrolled_window,
+                              GtkPositionType pos, gpointer user_data)
 {
     GtkWidget *viewport = gtk_scrolled_window_get_child(scrolled_window);
     GtkWidget *entry_list = gtk_viewport_get_child(GTK_VIEWPORT(viewport));
 
-    uint32_t total_sources = database_get_total_sources(db),
-             *ids = malloc(sizeof(uint32_t) * total_sources),
-             found = database_get_latest_sources(db, total_sources, offset, ids);
+    uint32_t total_sources = database_get_total_sources(db);
+    int64_t *ids = malloc(sizeof(int64_t) * total_sources);
+    uint32_t found =
+        database_get_latest_sources(db, total_sources, offset, ids);
     found = found > NUMBER_OF_SOURCES ? NUMBER_OF_SOURCES : found;
     offset += found;
 
@@ -187,9 +195,10 @@ static void search_database(GtkSearchEntry *search, gpointer user_data)
         return;
     }
 
-    uint32_t total_sources = database_get_total_sources(db),
-             *ids = xmalloc(sizeof(uint32_t) * total_sources),
-             found = database_find_matching_sources(db, (void *) text, strlen(text), total_sources, ids, FALSE);
+    uint32_t total_sources = database_get_total_sources(db);
+    int64_t *ids = xmalloc(sizeof(int64_t) * total_sources);
+    uint32_t found = database_find_matching_sources(
+        db, (void *)text, strlen(text), total_sources, ids, FALSE);
 
     for (int i = 0; i < found; i++)
     {
@@ -216,11 +225,13 @@ static void activate(GtkApplication *app, gpointer user_data)
     struct Widgets *widgets = xmalloc(sizeof(struct Widgets));
     widgets->window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(widgets->window), "kaprica");
-    gtk_window_set_default_size(GTK_WINDOW(widgets->window), WINDOW_WIDTH, WINDOW_HEIGHT);
+    gtk_window_set_default_size(GTK_WINDOW(widgets->window), WINDOW_WIDTH,
+                                WINDOW_HEIGHT);
 
-    uint32_t total_sources = database_get_total_sources(db),
-             *ids = xmalloc(sizeof(uint32_t) * total_sources),
-             found = database_get_latest_sources(db, total_sources, offset, ids);
+    uint32_t total_sources = database_get_total_sources(db);
+    int64_t *ids = xmalloc(sizeof(int64_t) * total_sources);
+    uint32_t found =
+        database_get_latest_sources(db, total_sources, offset, ids);
     found = found > NUMBER_OF_SOURCES ? NUMBER_OF_SOURCES : found;
     offset += found;
 
@@ -235,22 +246,32 @@ static void activate(GtkApplication *app, gpointer user_data)
     widgets->no_match = gtk_label_new("No matches found...");
 
     /* Setup scrolling */
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry),
-                                  widgets->entry_list);
-    gtk_scrolled_window_set_max_content_width(GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), WINDOW_WIDTH);
-    gtk_scrolled_window_set_propagate_natural_width(GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), TRUE);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry),
-                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    g_signal_connect(widgets->scrolled_window_entry, "edge-reached", G_CALLBACK(load_more_entries), widgets);
+    gtk_scrolled_window_set_child(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry),
+        widgets->entry_list);
+    gtk_scrolled_window_set_max_content_width(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), WINDOW_WIDTH);
+    gtk_scrolled_window_set_propagate_natural_width(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), TRUE);
+    gtk_scrolled_window_set_policy(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), GTK_POLICY_NEVER,
+        GTK_POLICY_AUTOMATIC);
+    g_signal_connect(widgets->scrolled_window_entry, "edge-reached",
+                     G_CALLBACK(load_more_entries), widgets);
 
     /* Setup search */
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(widgets->scrolled_window_search),
-                                  widgets->search_list);
-    gtk_scrolled_window_set_max_content_width(GTK_SCROLLED_WINDOW(widgets->scrolled_window_search), WINDOW_WIDTH);
-    gtk_scrolled_window_set_propagate_natural_width(GTK_SCROLLED_WINDOW(widgets->scrolled_window_search), TRUE);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(widgets->scrolled_window_search),
-                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    g_signal_connect(widgets->search_bar, "search-changed", G_CALLBACK(search_database), widgets);
+    gtk_scrolled_window_set_child(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_search),
+        widgets->search_list);
+    gtk_scrolled_window_set_max_content_width(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_search), WINDOW_WIDTH);
+    gtk_scrolled_window_set_propagate_natural_width(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_search), TRUE);
+    gtk_scrolled_window_set_policy(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_search), GTK_POLICY_NEVER,
+        GTK_POLICY_AUTOMATIC);
+    g_signal_connect(widgets->search_bar, "search-changed",
+                     G_CALLBACK(search_database), widgets);
 
     for (int i = 0; i < found; i++)
     {
@@ -277,7 +298,8 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_box_set_homogeneous(GTK_BOX(widgets->back_list), FALSE);
 
     gtk_box_prepend(GTK_BOX(widgets->back_list), widgets->search_bar);
-    gtk_box_append(GTK_BOX(widgets->back_list), widgets->scrolled_window_search);
+    gtk_box_append(GTK_BOX(widgets->back_list),
+                   widgets->scrolled_window_search);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->scrolled_window_entry);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->no_entry);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->no_match);
@@ -301,8 +323,8 @@ static void activate(GtkApplication *app, gpointer user_data)
 
 int main(int argc, char *argv[])
 {
-    GtkApplication *app =
-        gtk_application_new("com.github.artsymacaw.kaprica", G_APPLICATION_DEFAULT_FLAGS);
+    GtkApplication *app = gtk_application_new("com.github.artsymacaw.kaprica",
+                                              G_APPLICATION_DEFAULT_FLAGS);
     db = database_open();
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
 

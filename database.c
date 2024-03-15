@@ -14,7 +14,8 @@ static sqlite3_stmt *create_main_table, *create_content_table,
     *insert_source_entry, *insert_source_content, *delete_old_source_entries,
     *pragma_foreign_keys, *select_latest_sources, *select_source,
     *find_matching_sources, *select_snippet, *find_matching_types,
-    *pragma_journal_wal, *delete_source_entry, *total_sources, *select_thumbnail;
+    *pragma_journal_wal, *delete_source_entry, *total_sources,
+    *select_thumbnail;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -104,8 +105,8 @@ static void prepare_all_statements(sqlite3 *db)
     prepare_statement(db, remove_source_entry, &delete_source_entry);
 
     const char get_latest_sources[] = "SELECT history_id FROM clipboard_history"
-                                     "    ORDER BY timestamp DESC"
-                                     "    LIMIT ?1 OFFSET ?2;";
+                                      "    ORDER BY timestamp DESC"
+                                      "    LIMIT ?1 OFFSET ?2;";
     prepare_statement(db, get_latest_sources, &select_latest_sources);
 
     const char get_source[] = "SELECT * FROM content"
@@ -159,7 +160,7 @@ static int execute_statement(sqlite3_stmt *stmt)
 }
 
 static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
-                           uint32_t length, enum datatype type)
+                           size_t length, enum datatype type)
 {
     int ret;
     switch (type)
@@ -196,7 +197,7 @@ uint32_t database_get_total_sources(sqlite3 *db)
     return total;
 }
 
-void database_delete_entry(sqlite3 *db, uint32_t id)
+void database_delete_entry(sqlite3 *db, int64_t id)
 {
     bind_statement(delete_source_entry, ID_BINDING, &id, 0, INT);
     execute_statement(delete_source_entry);
@@ -235,10 +236,11 @@ void database_insert_source(sqlite3 *db, source_buffer *src)
     }
 }
 
-uint32_t database_get_latest_sources(sqlite3 *db, uint16_t num_of_entries, uint32_t offset,
-                                     uint32_t *list_of_ids)
+uint32_t database_get_latest_sources(sqlite3 *db, uint16_t num_of_entries,
+                                     uint32_t offset, int64_t *list_of_ids)
 {
-    bind_statement(select_latest_sources, ENTRY_BINDING, &num_of_entries, 0, INT);
+    bind_statement(select_latest_sources, ENTRY_BINDING, &num_of_entries, 0,
+                   INT);
     bind_statement(select_latest_sources, LENGTH_BINDING, &offset, 0, INT);
 
     int counter = 0;
@@ -254,9 +256,9 @@ uint32_t database_get_latest_sources(sqlite3 *db, uint16_t num_of_entries, uint3
     return counter;
 }
 
-uint16_t database_find_matching_sources(sqlite3 *db, void *match,
-                                       uint32_t length, uint16_t num_of_entries,
-                                       uint32_t *list_of_ids, bool mime_type)
+uint32_t database_find_matching_sources(sqlite3 *db, void *match, size_t length,
+                                        uint16_t num_of_entries,
+                                        int64_t *list_of_ids, bool mime_type)
 {
     sqlite3_stmt *search;
     if (mime_type)
@@ -299,7 +301,7 @@ uint16_t database_find_matching_sources(sqlite3 *db, void *match,
     return counter;
 }
 
-char *database_get_snippet(sqlite3 *db, uint32_t id)
+char *database_get_snippet(sqlite3 *db, int64_t id)
 {
     bind_statement(select_snippet, ID_BINDING, &id, 0, INT);
     int ret = execute_statement(select_snippet);
@@ -325,7 +327,7 @@ char *database_get_snippet(sqlite3 *db, uint32_t id)
     return snippet;
 }
 
-void *database_get_thumbnail(sqlite3 *db, uint32_t id, uint32_t *len)
+void *database_get_thumbnail(sqlite3 *db, int64_t id, size_t *len)
 {
     bind_statement(select_thumbnail, ID_BINDING, &id, 0, INT);
     execute_statement(select_thumbnail);
@@ -341,7 +343,7 @@ void *database_get_thumbnail(sqlite3 *db, uint32_t id, uint32_t *len)
     return thumbnail;
 }
 
-bool database_get_source(sqlite3 *db, uint32_t id, source_buffer *src)
+bool database_get_source(sqlite3 *db, int64_t id, source_buffer *src)
 {
     src->snippet = database_get_snippet(db, id);
     if (!src->snippet)
@@ -401,7 +403,7 @@ sqlite3 *database_init(void)
     prepare_bootstrap_statements(db);
 
     execute_statement(pragma_foreign_keys);
-    //execute_statement(pragma_journal_wal);
+    // execute_statement(pragma_journal_wal);
     execute_statement(create_main_table);
     execute_statement(create_content_table);
 
@@ -424,7 +426,7 @@ sqlite3 *database_open(void)
     return db;
 }
 
-uint32_t database_destroy_old_entries(sqlite3 *db, int32_t days)
+uint32_t database_destroy_old_entries(sqlite3 *db, uint32_t days)
 {
     bind_statement(delete_old_source_entries, DATE_BINDING, &days, 0, INT);
     execute_statement(delete_old_source_entries);

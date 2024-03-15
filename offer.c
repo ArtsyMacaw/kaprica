@@ -20,7 +20,7 @@ data_control_offer_mime_handler(void *data,
                                 const char *mime_type)
 {
     clipboard *clip = (clipboard *)data;
-    offer_buffer *ofr = clip->selection_o;
+    offer_buffer *ofr = clip->selection_offer;
 
     if (ofr->num_types < (MAX_MIME_TYPES - 1))
     {
@@ -44,7 +44,7 @@ static void data_control_device_selection_handler(
     struct zwlr_data_control_offer_v1 *data_offer)
 {
     clipboard *clip = (clipboard *)data;
-    clip->selection_o->buf = SELECTION;
+    clip->selection_offer->buf = SELECTION;
 }
 
 static void data_control_device_primary_selection_handler(
@@ -52,7 +52,7 @@ static void data_control_device_primary_selection_handler(
     struct zwlr_data_control_offer_v1 *data_offer)
 {
     clipboard *clip = (clipboard *)data;
-    clip->selection_o->buf = PRIMARY;
+    clip->selection_offer->buf = PRIMARY;
 }
 
 static void data_control_device_finished_handler(
@@ -66,8 +66,8 @@ static void data_control_device_data_offer_handler(
     struct zwlr_data_control_offer_v1 *data_offer)
 {
     clipboard *clip = (clipboard *)data;
-    offer_clear(clip->selection_o);
-    clip->selection_o->offer = data_offer;
+    offer_clear(clip->selection_offer);
+    clip->selection_offer->offer = data_offer;
     zwlr_data_control_offer_v1_add_listener(
         data_offer, &zwlr_data_control_offer_v1_listener, data);
 }
@@ -81,8 +81,8 @@ const struct zwlr_data_control_device_v1_listener
 
 void sync_buffers(clipboard *clip)
 {
-    source_buffer *src = clip->selection_s;
-    offer_buffer *ofr = clip->selection_o;
+    source_buffer *src = clip->selection_source;
+    offer_buffer *ofr = clip->selection_offer;
 
     source_clear(src);
     for (int i = 0; i < ofr->num_types; i++)
@@ -109,7 +109,7 @@ void clip_watch(clipboard *clip)
 
 void clip_get_selection(clipboard *clip)
 {
-    offer_buffer *ofr = clip->selection_o;
+    offer_buffer *ofr = clip->selection_offer;
     for (int i = 0; i < ofr->num_types; i++)
     {
         int fds[2];

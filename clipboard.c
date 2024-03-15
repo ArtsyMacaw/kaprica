@@ -30,8 +30,8 @@ struct wl_registry_listener registry_listener = {
 clipboard *clip_init(void)
 {
     clipboard *clip = xmalloc(sizeof(clipboard));
-    clip->selection_o = offer_init();
-    clip->selection_s = source_init();
+    clip->selection_offer = offer_init();
+    clip->selection_source = source_init();
 
     clip->display = wl_display_connect(NULL);
     if (!clip->display)
@@ -58,14 +58,14 @@ clipboard *clip_init(void)
 
 void clip_destroy(clipboard *clip)
 {
-    if (clip->selection_s)
+    if (clip->selection_source)
     {
-        source_destroy(clip->selection_s);
+        source_destroy(clip->selection_source);
     }
 
-    if (clip->selection_o)
+    if (clip->selection_offer)
     {
-        offer_destroy(clip->selection_o);
+        offer_destroy(clip->selection_offer);
     }
 
     zwlr_data_control_device_v1_destroy(clip->dmng);
