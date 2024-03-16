@@ -421,6 +421,9 @@ sqlite3 *database_open(void)
         fprintf(stderr, "Failed to open database: %s\n", sqlite3_errmsg(db));
         exit(EXIT_FAILURE);
     }
+    prepare_bootstrap_statements(db);
+    execute_statement(pragma_foreign_keys);
+
     prepare_all_statements(db);
 
     return db;
