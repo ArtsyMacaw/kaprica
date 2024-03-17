@@ -18,16 +18,25 @@ enum defaults
 
 struct Widgets
 {
+    /* Main window */
     GtkWidget *window;
     GtkWidget *back_list;
+    /* Search */
     GtkWidget *search_bar;
     GtkWidget *scrolled_window_search;
+    GtkWidget *search_list;
+    GtkWidget *no_match;
+    /* Entry */
     GtkWidget *scrolled_window_entry;
     GtkWidget *entry_list;
-    GtkWidget *search_list;
-    GtkWidget *clear_all;
     GtkWidget *no_entry;
-    GtkWidget *no_match;
+    /* Clear all */
+    GtkWidget *clear_all;
+    GtkWidget *confirm_vbox;
+    GtkWidget *confirm_label;
+    GtkWidget *confirm_hbox;
+    GtkWidget *confirm_yes;
+    GtkWidget *confirm_no;
 };
 
 static sqlite3 *db;
@@ -220,6 +229,44 @@ static void search_database(GtkSearchEntry *search, gpointer user_data)
     }
 }
 
+static void confirm_clear_all(GtkWidget *button, gpointer user_data)
+{
+    struct Widgets *widgets = user_data;
+
+    gtk_widget_set_visible(widgets->scrolled_window_entry, FALSE);
+    gtk_widget_set_visible(widgets->scrolled_window_search, FALSE);
+    gtk_widget_set_visible(widgets->clear_all, FALSE);
+    gtk_widget_set_visible(widgets->no_match, FALSE);
+    gtk_widget_set_visible(widgets->no_entry, FALSE);
+    gtk_widget_set_visible(widgets->search_bar, FALSE);
+
+    gtk_widget_set_visible(widgets->confirm_vbox, TRUE);
+}
+
+static void clear_all_no(GtkWidget *button, gpointer user_data)
+{
+    struct Widgets *widgets = user_data;
+
+    gtk_widget_set_visible(widgets->clear_all, TRUE);
+    gtk_widget_set_visible(widgets->scrolled_window_entry, TRUE);
+    gtk_widget_set_visible(widgets->search_bar, TRUE);
+
+    gtk_widget_set_visible(widgets->confirm_vbox, FALSE);
+}
+
+static void clear_all_yes(GtkWidget *button, gpointer user_data)
+{
+    struct Widgets *widgets = user_data;
+
+    // implement database_clear_all(db);
+    gtk_list_box_remove_all(GTK_LIST_BOX(widgets->entry_list));
+    gtk_widget_set_visible(widgets->clear_all, TRUE);
+    gtk_widget_set_visible(widgets->no_entry, TRUE);
+    gtk_widget_set_visible(widgets->search_bar, TRUE);
+
+    gtk_widget_set_visible(widgets->confirm_vbox, FALSE);
+}
+
 static void activate(GtkApplication *app, gpointer user_data)
 {
     struct Widgets *widgets = xmalloc(sizeof(struct Widgets));
@@ -235,31 +282,14 @@ static void activate(GtkApplication *app, gpointer user_data)
     found = found > NUMBER_OF_SOURCES ? NUMBER_OF_SOURCES : found;
     offset += found;
 
-    widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0),
-    widgets->search_bar = gtk_search_entry_new(),
-    widgets->scrolled_window_search = gtk_scrolled_window_new(),
-    widgets->scrolled_window_entry = gtk_scrolled_window_new(),
-    widgets->entry_list = gtk_list_box_new(),
-    widgets->search_list = gtk_list_box_new(),
-    widgets->clear_all = gtk_button_new_with_label("Clear All"),
-    widgets->no_entry = gtk_label_new("No entries yet...");
+    /* Main box */
+    widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+
+    /* Setup searching */
+    widgets->search_bar = gtk_search_entry_new();
+    widgets->scrolled_window_search = gtk_scrolled_window_new();
+    widgets->search_list = gtk_list_box_new();
     widgets->no_match = gtk_label_new("No matches found...");
-
-    /* Setup scrolling */
-    gtk_scrolled_window_set_child(
-        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry),
-        widgets->entry_list);
-    gtk_scrolled_window_set_max_content_width(
-        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), WINDOW_WIDTH);
-    gtk_scrolled_window_set_propagate_natural_width(
-        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), TRUE);
-    gtk_scrolled_window_set_policy(
-        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), GTK_POLICY_NEVER,
-        GTK_POLICY_AUTOMATIC);
-    g_signal_connect(widgets->scrolled_window_entry, "edge-reached",
-                     G_CALLBACK(load_more_entries), widgets);
-
-    /* Setup search */
     gtk_scrolled_window_set_child(
         GTK_SCROLLED_WINDOW(widgets->scrolled_window_search),
         widgets->search_list);
@@ -273,12 +303,45 @@ static void activate(GtkApplication *app, gpointer user_data)
     g_signal_connect(widgets->search_bar, "search-changed",
                      G_CALLBACK(search_database), widgets);
 
+    /* Setup entries */
+    widgets->scrolled_window_entry = gtk_scrolled_window_new();
+    widgets->entry_list = gtk_list_box_new();
+    widgets->no_entry = gtk_label_new("No entries yet...");
+    gtk_scrolled_window_set_child(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry),
+        widgets->entry_list);
+    gtk_scrolled_window_set_max_content_width(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), WINDOW_WIDTH);
+    gtk_scrolled_window_set_propagate_natural_width(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), TRUE);
+    gtk_scrolled_window_set_policy(
+        GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry), GTK_POLICY_NEVER,
+        GTK_POLICY_AUTOMATIC);
+    g_signal_connect(widgets->scrolled_window_entry, "edge-reached",
+                     G_CALLBACK(load_more_entries), widgets);
     for (int i = 0; i < found; i++)
     {
         GtkWidget *button = create_button(ids[i], widgets);
         gtk_list_box_insert(GTK_LIST_BOX(widgets->entry_list), button, -1);
     }
     free(ids);
+
+    /* Setup clear all */
+    widgets->clear_all = gtk_button_new_with_label("Clear All");
+    widgets->confirm_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    widgets->confirm_label = gtk_label_new("Are you sure you want to delete everything?");
+    widgets->confirm_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    widgets->confirm_yes = gtk_button_new_with_label("Yes");
+    widgets->confirm_no = gtk_button_new_with_label("No");
+    gtk_button_set_has_frame(GTK_BUTTON(widgets->confirm_no), FALSE);
+    gtk_button_set_has_frame(GTK_BUTTON(widgets->confirm_yes), FALSE);
+    g_signal_connect(widgets->clear_all, "clicked", G_CALLBACK(confirm_clear_all), widgets);
+    g_signal_connect(widgets->confirm_no, "clicked", G_CALLBACK(clear_all_no), widgets);
+    g_signal_connect(widgets->confirm_yes, "clicked", G_CALLBACK(clear_all_yes), widgets);
+    gtk_box_prepend(GTK_BOX(widgets->confirm_vbox), widgets->confirm_label);
+    gtk_box_append(GTK_BOX(widgets->confirm_vbox), widgets->confirm_hbox);
+    gtk_box_append(GTK_BOX(widgets->confirm_hbox), widgets->confirm_yes);
+    gtk_box_append(GTK_BOX(widgets->confirm_hbox), widgets->confirm_no);
 
     /* Wow, more formatting code */
     gtk_widget_set_hexpand(widgets->entry_list, TRUE);
@@ -289,6 +352,14 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_vexpand(widgets->no_entry, TRUE);
     gtk_widget_set_hexpand(widgets->no_match, TRUE);
     gtk_widget_set_vexpand(widgets->no_match, TRUE);
+    gtk_widget_set_hexpand(widgets->confirm_label, TRUE);
+    gtk_widget_set_vexpand(widgets->confirm_label, TRUE);
+    gtk_widget_set_hexpand(widgets->confirm_hbox, TRUE);
+    gtk_widget_set_vexpand(widgets->confirm_hbox, TRUE);
+    gtk_widget_set_hexpand(widgets->confirm_yes, TRUE);
+    gtk_widget_set_vexpand(widgets->confirm_yes, TRUE);
+    gtk_widget_set_hexpand(widgets->confirm_no, TRUE);
+    gtk_widget_set_vexpand(widgets->confirm_no, TRUE);
     gtk_widget_set_valign(widgets->scrolled_window_entry, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->scrolled_window_search, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->back_list, GTK_ALIGN_FILL);
@@ -297,17 +368,19 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_valign(widgets->clear_all, GTK_ALIGN_END);
     gtk_box_set_homogeneous(GTK_BOX(widgets->back_list), FALSE);
 
+    /* Pack the main box */
     gtk_box_prepend(GTK_BOX(widgets->back_list), widgets->search_bar);
     gtk_box_append(GTK_BOX(widgets->back_list),
                    widgets->scrolled_window_search);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->scrolled_window_entry);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->no_entry);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->no_match);
+    gtk_box_append(GTK_BOX(widgets->back_list), widgets->confirm_vbox);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->clear_all);
 
     gtk_widget_set_visible(widgets->no_match, FALSE);
     gtk_widget_set_visible(widgets->scrolled_window_search, FALSE);
-
+    gtk_widget_set_visible(widgets->confirm_vbox, FALSE);
     if (found)
     {
         gtk_widget_set_visible(widgets->no_entry, FALSE);
