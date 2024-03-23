@@ -74,6 +74,9 @@ source_buffer *source_init(void)
     src->expired = false;
     src->num_types = 0;
     src->thumbnail = NULL;
+    src->thumbnail_len = 0;
+    src->source = NULL;
+    src->snippet = NULL;
     return src;
 }
 
@@ -107,6 +110,7 @@ void source_clear(source_buffer *src)
     free(src->snippet);
     src->num_types = 0;
     src->expired = false;
+    src->offer_once = false;
     if (src->thumbnail)
     {
         free(src->thumbnail);

@@ -75,6 +75,7 @@ typedef struct
     struct wl_seat *seat;
     struct zwlr_data_control_manager_v1 *cmng;
     struct zwlr_data_control_device_v1 *dmng;
+    struct wl_registry *registry;
 } clipboard;
 
 /* Clipboard functions | clipboard.c */

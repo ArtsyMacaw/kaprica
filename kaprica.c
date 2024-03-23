@@ -338,7 +338,7 @@ static size_t trim_newline(void *data, size_t length)
 }
 
 /* Only used if were passed a file via '<' on the cli */
-static void get_stdin(source_buffer *input)
+static bool get_stdin(source_buffer *input)
 {
     input->data[0] = xmalloc(MAX_DATA_SIZE);
     input->len[0] = fread(input->data[0], 1, MAX_DATA_SIZE, stdin);
@@ -346,7 +346,11 @@ static void get_stdin(source_buffer *input)
     if (!feof(stdin))
     {
         fprintf(stderr, "File is too large to copy\n");
-        exit(EXIT_FAILURE);
+        return false;
+    }
+    else
+    {
+        return true;
     }
 }
 
@@ -456,6 +460,8 @@ int main(int argc, char *argv[])
 {
     parse_options(argc, argv);
 
+    sqlite3 *db = NULL;
+    int64_t *ids = NULL;
     clip = clip_init();
 
     source_buffer *src = clip->selection_source;
@@ -467,7 +473,7 @@ int main(int argc, char *argv[])
         {
             clip_clear_selection(clip);
             wl_display_roundtrip(clip->display);
-            exit(EXIT_SUCCESS);
+            goto cleanup;
         }
 
         else if (argv[optind])
@@ -478,12 +484,15 @@ int main(int argc, char *argv[])
         }
         else
         {
-            get_stdin(src);
+            if (!get_stdin(src))
+            {
+                goto cleanup;
+            }
         }
 
         if (options.id)
         {
-            sqlite3 *db = database_init();
+            db = database_init();
             int64_t id = atoi(src->data[0]);
             if (!id)
             {
@@ -492,7 +501,7 @@ int main(int argc, char *argv[])
             if (!database_get_source(db, id, src))
             {
                 printf("ID: %lu not found\n", id);
-                exit(EXIT_FAILURE);
+                goto cleanup;
             }
         }
 
@@ -540,45 +549,34 @@ int main(int argc, char *argv[])
     {
         if (options.id)
         {
-            sqlite3 *db = database_init();
+            db = database_init();
+            uint32_t num_of_ids = 0;
             if (argv[optind])
             {
-                int64_t *ids = xmalloc(sizeof(int64_t) * (argc - optind));
-                uint32_t num_of_ids =
-                    get_ids((argc - optind), (argv + optind), ids);
+                ids = xmalloc(sizeof(int64_t) * (argc - optind));
+                num_of_ids = get_ids((argc - optind), (argv + optind), ids);
                 ids = xrealloc(ids, sizeof(int64_t) * num_of_ids);
-                for (int i = 0; i < num_of_ids; i++)
-                {
-                    if (database_get_source(db, ids[i], src))
-                    {
-                        write_to_stdout(src);
-                        source_clear(src);
-                    }
-                    else
-                    {
-                        fprintf(stderr, "ID: %lu not found\n", ids[i]);
-                    }
-                }
             }
             else
             {
-                int64_t *ids = xmalloc(sizeof(int64_t) * 100);
-                uint32_t num_of_ids = seperate_stdin_into_ids(ids);
+                ids = xmalloc(sizeof(int64_t) * 100);
+                num_of_ids = seperate_stdin_into_ids(ids);
+                ids = xrealloc(ids, sizeof(int64_t) * num_of_ids);
+            }
 
-                for (int i = 0; i < num_of_ids; i++)
+            for (int i = 0; i < num_of_ids; i++)
+            {
+                if (database_get_source(db, ids[i], src))
                 {
-                    if (database_get_source(db, ids[i], src))
-                    {
-                        write_to_stdout(src);
-                        source_clear(src);
-                    }
-                    else
-                    {
-                        fprintf(stderr, "ID: %lu not found\n", ids[i]);
-                    }
+                    write_to_stdout(src);
+                    source_clear(src);
+                }
+                else
+                {
+                    fprintf(stderr, "ID: %lu not found\n", ids[i]);
                 }
             }
-            exit(EXIT_SUCCESS);
+            goto cleanup;
         }
 
         clip_watch(clip);
@@ -586,7 +584,7 @@ int main(int argc, char *argv[])
         if (!ofr->offer)
         {
             printf("Buffer is unset\n");
-            exit(EXIT_SUCCESS);
+            goto cleanup;
         }
 
         while (!ofr->num_types)
@@ -601,30 +599,22 @@ int main(int argc, char *argv[])
             {
                 printf("%s\n", src->types[i].type);
             }
-            exit(EXIT_SUCCESS);
+            goto cleanup;
         }
 
         write_to_stdout(src);
     }
     else if (options.action == SEARCH)
     {
-        sqlite3 *db = database_init();
+        db = database_init();
         if (argv[optind])
         {
-            if ((argc - optind) == 1)
-            {
-                src->data[0] = xstrdup(argv[optind]);
-                src->len[0] = strlen(argv[optind]);
-            }
-            else
-            {
-                /* Pass everything not handled by getopt or main */
-                src->len[0] =
-                    concatenate_argv((argc - optind), (argv + optind), src);
-            }
+            /* Pass everything not handled by getopt or main */
+            src->len[0] =
+                concatenate_argv((argc - optind), (argv + optind), src);
         }
 
-        int64_t *ids = xmalloc(sizeof(int64_t) * options.limit);
+        ids = xmalloc(sizeof(int64_t) * options.limit);
         uint32_t found = database_find_matching_sources(
             db, src->data[0], src->len[0], options.limit, ids,
             options.search_by_type);
@@ -662,12 +652,10 @@ int main(int argc, char *argv[])
 
             free(snippet);
         }
-        free(ids);
-        database_destroy(db);
     }
     else if (options.action == DELETE)
     {
-        sqlite3 *db = database_init();
+        db = database_init();
         if (argv[optind] && !options.id)
         {
             /* Pass everything not handled by getopt or main */
@@ -675,7 +663,7 @@ int main(int argc, char *argv[])
                 concatenate_argv((argc - optind), (argv + optind), src);
         }
 
-        int64_t *ids = xmalloc(sizeof(int64_t) * options.limit);
+        ids = xmalloc(sizeof(int64_t) * options.limit);
         uint32_t found = 0;
         if (options.id)
         {
@@ -694,6 +682,7 @@ int main(int argc, char *argv[])
                                                    src->len[0], options.limit,
                                                    ids, options.search_by_type);
         }
+
         char *input = NULL;
         char tmp = options.accept;
 
@@ -715,8 +704,16 @@ int main(int argc, char *argv[])
                 database_delete_entry(db, ids[i]);
             }
         }
-        free(ids);
+    }
+
+cleanup:
+    if (db)
+    {
         database_destroy(db);
+    }
+    if (ids)
+    {
+        free(ids);
     }
     clip_destroy(clip);
 }

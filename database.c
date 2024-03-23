@@ -453,6 +453,9 @@ void database_destroy(sqlite3 *db)
     sqlite3_finalize(pragma_journal_wal);
     sqlite3_finalize(select_snippet);
     sqlite3_finalize(find_matching_types);
+    sqlite3_finalize(delete_source_entry);
+    sqlite3_finalize(total_sources);
+    sqlite3_finalize(select_thumbnail);
     sqlite3_db_release_memory(db);
     sqlite3_close(db);
 }

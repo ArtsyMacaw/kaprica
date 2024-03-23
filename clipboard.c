@@ -40,8 +40,8 @@ clipboard *clip_init(void)
         exit(EXIT_FAILURE);
     }
 
-    struct wl_registry *registry = wl_display_get_registry(clip->display);
-    wl_registry_add_listener(registry, &registry_listener, (void *)clip);
+    clip->registry = wl_display_get_registry(clip->display);
+    wl_registry_add_listener(clip->registry, &registry_listener, (void *)clip);
 
     wl_display_roundtrip(clip->display);
     if (!clip->cmng)
@@ -68,6 +68,7 @@ void clip_destroy(clipboard *clip)
         offer_destroy(clip->selection_offer);
     }
 
+    wl_registry_destroy(clip->registry);
     zwlr_data_control_device_v1_destroy(clip->dmng);
     zwlr_data_control_manager_v1_destroy(clip->cmng);
     wl_seat_destroy(clip->seat);

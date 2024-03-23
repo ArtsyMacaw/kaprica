@@ -184,6 +184,9 @@ offer_buffer *offer_init(void)
         ofr->data[i] = NULL;
         ofr->invalid_data[i] = false;
     }
+    ofr->num_types = 0;
+    ofr->offer = NULL;
+    ofr->buf = SELECTION;
     return ofr;
 }
 
@@ -193,6 +196,10 @@ void offer_destroy(offer_buffer *ofr)
     {
         free(ofr->data[i]);
         free(ofr->types[i].type);
+    }
+    if (ofr->offer)
+    {
+        zwlr_data_control_offer_v1_destroy(ofr->offer);
     }
     free(ofr);
 }
@@ -214,5 +221,9 @@ void offer_clear(offer_buffer *ofr)
         ofr->invalid_data[i] = false;
     }
     ofr->num_types = 0;
-    ofr->offer = NULL;
+    if (ofr->offer)
+    {
+        zwlr_data_control_offer_v1_destroy(ofr->offer);
+        ofr->offer = NULL;
+    }
 }
