@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
     clip_watch(clip);
     wl_display_roundtrip(clip->display);
 
-    /* If selection is set copy and re-serve it; if its unset
+    /* If selection is set add it to the database; if its unset
      * try to load last source from history, and if all else
      * fails just wait for selection to be set */
     uint32_t num_of_entries = database_get_total_entries(db);
@@ -75,7 +75,6 @@ int main(int argc, char *argv[])
         if (selection_set)
         {
             database_insert_entry(db, clip->selection_source);
-            clip_set_selection(clip);
             break;
         }
 
@@ -85,6 +84,7 @@ int main(int argc, char *argv[])
             database_get_latest_entries(db, 1, 0, &id);
             database_get_entry(db, id, clip->selection_source);
             clip_set_selection(clip);
+            clip->serving = true;
             break;
         }
 
@@ -95,14 +95,21 @@ int main(int argc, char *argv[])
     {
         prepare_read(clip->display);
 
-        if (clip->selection_source->expired)
+        if ((clip->serving && clip->selection_source->expired) ||
+            (!clip->serving && clip->selection_offer->expired))
         {
             wl_display_cancel_read(clip->display);
 
-            clip_get_selection(clip);
-            clip_set_selection(clip);
-
-            database_insert_entry(db, clip->selection_source);
+            if (clip_get_selection(clip))
+            {
+                database_insert_entry(db, clip->selection_source);
+                clip->serving = false;
+            }
+            else
+            {
+                clip_set_selection(clip);
+                clip->serving = true;
+            }
 
             prepare_read(clip->display);
         }

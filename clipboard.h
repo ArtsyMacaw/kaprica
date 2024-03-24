@@ -24,19 +24,20 @@ typedef enum
     PRIMARY // Not implemented yet
 } clipboard_buffer;
 
-/* Buffer not managed by us */
+/* Buffer not managed by kaprica */
 typedef struct
 {
     void *data[MAX_MIME_TYPES];
     char *types[MAX_MIME_TYPES];
     size_t len[MAX_MIME_TYPES];
     bool invalid_data[MAX_MIME_TYPES];
+    bool expired;
     uint8_t num_types;
     struct zwlr_data_control_offer_v1 *offer;
     clipboard_buffer buf;
 } offer_buffer;
 
-/* Buffer managed by us */
+/* Buffer managed by kaprica */
 typedef struct
 {
     void *data[MAX_MIME_TYPES];
@@ -51,8 +52,10 @@ typedef struct
     struct zwlr_data_control_source_v1 *source;
 } source_buffer;
 
+/* Clipboard state */
 typedef struct
 {
+    bool serving;
     source_buffer *selection_source;
     offer_buffer *selection_offer;
     struct wl_display *display;

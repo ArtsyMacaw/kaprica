@@ -32,6 +32,7 @@ clipboard *clip_init(void)
     clipboard *clip = xmalloc(sizeof(clipboard));
     clip->selection_offer = offer_init();
     clip->selection_source = source_init();
+    clip->serving = false;
 
     clip->display = wl_display_connect(NULL);
     if (!clip->display)

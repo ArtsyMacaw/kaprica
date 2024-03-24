@@ -53,6 +53,8 @@ static void data_control_device_selection_handler(
     struct zwlr_data_control_offer_v1 *data_offer)
 {
     clipboard *clip = (clipboard *)data;
+    clip->selection_offer->expired = true;
+    clip->selection_offer->offer = data_offer;
     clip->selection_offer->buf = SELECTION;
 }
 
@@ -129,6 +131,7 @@ bool clip_get_selection(clipboard *clip)
     {
         wl_display_dispatch(clip->display);
     }
+    clip->selection_offer->expired = false;
 
     for (int i = 0; i < ofr->num_types; i++)
     {
