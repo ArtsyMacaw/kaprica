@@ -67,14 +67,14 @@ int main(int argc, char *argv[])
     /* If selection is set copy and re-serve it; if its unset
      * try to load last source from history, and if all else
      * fails just wait for selection to be set */
-    uint32_t num_of_entries = database_get_total_sources(db);
+    uint32_t num_of_entries = database_get_total_entries(db);
     bool selection_set = false;
     do
     {
         selection_set = clip_get_selection(clip);
         if (selection_set)
         {
-            database_insert_source(db, clip->selection_source);
+            database_insert_entry(db, clip->selection_source);
             clip_set_selection(clip);
             break;
         }
@@ -82,8 +82,8 @@ int main(int argc, char *argv[])
         if (num_of_entries > 0)
         {
             int64_t id;
-            database_get_latest_sources(db, 1, 0, &id);
-            database_get_source(db, id, clip->selection_source);
+            database_get_latest_entries(db, 1, 0, &id);
+            database_get_entry(db, id, clip->selection_source);
             clip_set_selection(clip);
             break;
         }
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
             clip_get_selection(clip);
             clip_set_selection(clip);
 
-            database_insert_source(db, clip->selection_source);
+            database_insert_entry(db, clip->selection_source);
 
             prepare_read(clip->display);
         }

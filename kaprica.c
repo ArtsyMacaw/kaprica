@@ -497,7 +497,7 @@ int main(int argc, char *argv[])
             {
                 printf("Invalid input for --id\n");
             }
-            if (!database_get_source(db, id, src))
+            if (!database_get_entry(db, id, src))
             {
                 printf("ID: %lu not found\n", id);
                 goto cleanup;
@@ -565,7 +565,7 @@ int main(int argc, char *argv[])
 
             for (int i = 0; i < num_of_ids; i++)
             {
-                if (database_get_source(db, ids[i], src))
+                if (database_get_entry(db, ids[i], src))
                 {
                     write_to_stdout(src);
                     source_clear(src);
@@ -609,7 +609,7 @@ int main(int argc, char *argv[])
         }
 
         ids = xmalloc(sizeof(int64_t) * options.limit);
-        uint32_t found = database_find_matching_sources(
+        uint32_t found = database_find_matching_entries(
             db, src->data[0], src->len[0], options.limit, ids,
             options.search_by_type);
 
@@ -672,7 +672,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            found = database_find_matching_sources(db, src->data[0],
+            found = database_find_matching_entries(db, src->data[0],
                                                    src->len[0], options.limit,
                                                    ids, options.search_by_type);
         }
@@ -683,7 +683,7 @@ int main(int argc, char *argv[])
         for (int i = 0; i < found; i++)
         {
             source_clear(src);
-            database_get_source(db, ids[i], src);
+            database_get_entry(db, ids[i], src);
             if (tmp != 'A' && tmp != 'a')
             {
                 printf("%s\n", src->snippet);

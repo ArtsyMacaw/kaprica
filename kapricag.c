@@ -73,7 +73,7 @@ static void clicked(GtkWidget *button, gpointer user_data)
     clipboard *clip = clip_init();
     struct id_data *data = user_data;
     int64_t t = GPOINTER_TO_UINT(data->id);
-    database_get_source(data->widgets->db, t, clip->selection_source);
+    database_get_entry(data->widgets->db, t, clip->selection_source);
     database_destroy(data->widgets->db);
     clip_set_selection(clip);
 
@@ -261,7 +261,7 @@ static void find_search_result(GTask *task, gpointer task_data,
 {
     struct search_data *data = g_task_get_task_data(task);
 
-    *data->found = database_find_matching_sources(
+    *data->found = database_find_matching_entries(
         data->widgets->db, (void *)data->text, strlen(data->text),
         data->total_sources, data->ids, FALSE);
     data->buttons = xmalloc(sizeof(GtkWidget *) * *data->found);
@@ -361,11 +361,11 @@ static void activate(GtkApplication *app, gpointer user_data)
         exit(EXIT_FAILURE);
     }
 
-    uint32_t total_sources = database_get_total_sources(widgets->db),
+    uint32_t total_sources = database_get_total_entries(widgets->db),
              offset = 0;
     int64_t *ids = xmalloc(sizeof(int64_t) * total_sources);
     uint32_t found =
-        database_get_latest_sources(widgets->db, total_sources, offset, ids);
+        database_get_latest_entries(widgets->db, total_sources, offset, ids);
     found = found > NUMBER_OF_SOURCES ? NUMBER_OF_SOURCES : found;
     offset += found;
 
