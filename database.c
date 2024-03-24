@@ -16,7 +16,8 @@ static sqlite3_stmt *create_main_table, *create_content_table,
     *pragma_foreign_keys, *select_latest_sources, *select_source,
     *find_matching_sources, *select_snippet, *find_matching_types,
     *pragma_journal_wal, *delete_source_entry, *total_sources,
-    *select_thumbnail;
+    *select_thumbnail, *create_data_index, *create_mime_index, *create_snippet_index,
+    *create_thumbnail_index, *create_timestamp_index;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -80,6 +81,22 @@ static void prepare_bootstrap_statements(sqlite3 *db)
         "    FOREIGN KEY (entry) REFERENCES clipboard_history(history_id)"
         "       ON DELETE CASCADE);";
     prepare_statement(db, content_table, &create_content_table);
+
+    const char data_index[] = "CREATE INDEX IF NOT EXISTS data_index"
+                              "    ON content (data);";
+    prepare_statement(db, data_index, &create_data_index);
+
+    const char mime_index[] = "CREATE INDEX IF NOT EXISTS mime_index"
+                              "    ON content (mime_type);";
+    prepare_statement(db, mime_index, &create_mime_index);
+
+    const char snippet_index[] = "CREATE INDEX IF NOT EXISTS snippet_index"
+                                 "    ON clipboard_history (snippet);";
+    prepare_statement(db, snippet_index, &create_snippet_index);
+
+    const char thumbnail_index[] = "CREATE INDEX IF NOT EXISTS thumbnail_index"
+                                   "    ON clipboard_history (thumbnail);";
+    prepare_statement(db, thumbnail_index, &create_thumbnail_index);
 }
 
 /* Preparing statements is relatively costly resource wise
@@ -407,6 +424,10 @@ sqlite3 *database_init(void)
     // execute_statement(pragma_journal_wal);
     execute_statement(create_main_table);
     execute_statement(create_content_table);
+    execute_statement(create_data_index);
+    execute_statement(create_mime_index);
+    execute_statement(create_snippet_index);
+    execute_statement(create_thumbnail_index);
 
     prepare_all_statements(db);
 
