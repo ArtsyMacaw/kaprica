@@ -465,7 +465,6 @@ int main(int argc, char *argv[])
     clip = clip_init();
 
     source_buffer *src = clip->selection_source;
-    offer_buffer *ofr = clip->selection_offer;
 
     if (options.action == COPY)
     {
@@ -533,7 +532,7 @@ int main(int argc, char *argv[])
             pid_t pid = fork();
             if (pid < 0)
             {
-                fprintf(stderr, "Failed to fork\n");
+                perror("fork");
                 exit(EXIT_FAILURE);
             }
             else if (pid > 0)
@@ -581,17 +580,12 @@ int main(int argc, char *argv[])
 
         clip_watch(clip);
         wl_display_roundtrip(clip->display);
-        if (!ofr->offer)
+
+        if (!clip_get_selection(clip))
         {
             printf("Buffer is unset\n");
             goto cleanup;
         }
-
-        while (!ofr->num_types)
-        {
-            wl_display_dispatch(clip->display);
-        }
-        clip_get_selection(clip);
 
         if (options.listtypes)
         {

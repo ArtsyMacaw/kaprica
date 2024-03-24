@@ -42,8 +42,8 @@ int main(int argc, char *argv[])
     sigaddset(&mask, SIGTERM);
     if (sigprocmask(SIG_BLOCK, &mask, NULL) == -1)
     {
-        fprintf(stderr, "Failed to mask signals\n");
-        return 1;
+        perror("sigprocmask");
+        exit(EXIT_FAILURE);
     }
 
     int clean_up_entries = timerfd_create(CLOCK_MONOTONIC, 0);
@@ -67,31 +67,29 @@ int main(int argc, char *argv[])
     /* If selection is set copy and re-serve it; if its unset
      * try to load last source from history, and if all else
      * fails just wait for selection to be set */
-    bool db_is_not_empty = true;
-    while (!clip->selection_offer->num_types &&
-           !clip->selection_source->num_types)
+    uint32_t num_of_entries = database_get_total_sources(db);
+    bool selection_set = false;
+    do
     {
-        if (!clip->selection_offer->offer && db_is_not_empty)
+        selection_set = clip_get_selection(clip);
+        if (selection_set)
         {
-            printf("Loading from source database\n");
+            database_insert_source(db, clip->selection_source);
+            clip_set_selection(clip);
+            break;
+        }
+
+        if (num_of_entries > 0)
+        {
             int64_t id;
             database_get_latest_sources(db, 1, 0, &id);
-            if (id)
-            {
-                database_get_source(db, id, clip->selection_source);
-                break;
-            }
-            db_is_not_empty = false;
+            database_get_source(db, id, clip->selection_source);
+            clip_set_selection(clip);
+            break;
         }
-        wl_display_dispatch(clip->display);
-    }
 
-    if (!clip->selection_source->num_types)
-    {
-        clip_get_selection(clip);
-        database_insert_source(db, clip->selection_source);
-    }
-    clip_set_selection(clip);
+        wl_display_dispatch(clip->display);
+    } while (!selection_set);
 
     while (true)
     {
@@ -111,14 +109,14 @@ int main(int argc, char *argv[])
 
         if (poll(wait_for_events, 3, -1) < 0)
         {
-            fprintf(stderr, "Poll failed\n");
+            perror("poll");
             wl_display_cancel_read(clip->display);
-            return 1;
+            break;
         }
 
         if (poll(&wait_for_events[SIGNAL_EVENT], 1, 0) > 0)
         {
-            printf("Stopping Kaprica...\n");
+            printf("\nStopping Kaprica...\n");
             wl_display_cancel_read(clip->display);
             break;
         }

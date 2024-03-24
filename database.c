@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include "database.h"
 #include "clipboard.h"
 #include "xmalloc.h"
@@ -316,7 +317,7 @@ char *database_get_snippet(sqlite3 *db, int64_t id)
         (char *)sqlite3_column_text(select_snippet, (SNIPPET_BINDING - 1));
     if (!tmp_snippet)
     {
-        fprintf(stderr, "Failed to allocate memory\n");
+        perror("Failed to allocate memory");
         exit(EXIT_FAILURE);
     }
     char *snippet = xstrdup(tmp_snippet);
@@ -364,7 +365,7 @@ bool database_get_source(sqlite3 *db, int64_t id, source_buffer *src)
             sqlite3_column_blob(select_source, (DATA_BINDING - 1));
         if (!tmp_blob)
         {
-            fprintf(stderr, "Failed to allocate memory\n");
+            perror("Failed to allocate memory");
             exit(EXIT_FAILURE);
         }
         src->data[src->num_types] = xmalloc(src->len[src->num_types]);
@@ -375,7 +376,7 @@ bool database_get_source(sqlite3 *db, int64_t id, source_buffer *src)
 
         if (!tmp_text)
         {
-            fprintf(stderr, "Failed to allocate memory\n");
+            perror("Failed to allocate memory");
             exit(EXIT_FAILURE);
         }
         src->types[src->num_types].type = xstrdup(tmp_text);
@@ -394,12 +395,13 @@ sqlite3 *database_init(void)
 {
     sqlite3 *db;
     // Put database in a proper location, probably ~/.kaprica/history.db
-    sqlite3_open("./test.db", &db);
+    sqlite3_open("/home/haden/.kaprica/history.db", &db);
     if (!db)
     {
         fprintf(stderr, "Failed to create database: %s\n", sqlite3_errmsg(db));
         exit(EXIT_FAILURE);
     }
+
     prepare_bootstrap_statements(db);
 
     execute_statement(pragma_foreign_keys);
@@ -414,15 +416,24 @@ sqlite3 *database_init(void)
 
 sqlite3 *database_open(void)
 {
+    if (access("/home/haden/.kaprica/history.db", F_OK) == -1)
+    {
+        return NULL;
+    }
+
     sqlite3 *db;
-    sqlite3_open("./test.db", &db);
+    sqlite3_open("/home/haden/.kaprica/history.db", &db);
     if (!db)
     {
         fprintf(stderr, "Failed to open database: %s\n", sqlite3_errmsg(db));
         exit(EXIT_FAILURE);
     }
+
     prepare_bootstrap_statements(db);
+
     execute_statement(pragma_foreign_keys);
+    execute_statement(create_main_table);
+    execute_statement(create_content_table);
 
     prepare_all_statements(db);
 

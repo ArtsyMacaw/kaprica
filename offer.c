@@ -14,6 +14,16 @@
 #include "wlr-data-control.h"
 #include "xmalloc.h"
 
+/* By default wait 100ms for the client to start writing data
+ for images and other types that may take longer we wait a second
+ If we succesfully received data we can safely wait for a while */
+enum wait_length
+{
+    WAIT_TIME_SHORT = 100,
+    WAIT_TIME_LONG = 2000,
+    WAIT_TIME_LONGEST = 8000
+};
+
 static void
 data_control_offer_mime_handler(void *data,
                                 struct zwlr_data_control_offer_v1 *data_offer,
@@ -107,16 +117,27 @@ void clip_watch(clipboard *clip)
         clip->dmng, &zwlr_data_control_device_v1_listener, clip);
 }
 
-void clip_get_selection(clipboard *clip)
+bool clip_get_selection(clipboard *clip)
 {
     offer_buffer *ofr = clip->selection_offer;
+
+    if (!ofr->offer)
+    {
+        return false;
+    }
+
+    while (!ofr->num_types)
+    {
+        wl_display_dispatch(clip->display);
+    }
+
     for (int i = 0; i < ofr->num_types; i++)
     {
         int fds[2];
         if (pipe(fds) == -1)
         {
-            fprintf(stderr, "Failed to create pipe\n");
-            exit(1);
+            perror("pipe");
+            exit(EXIT_FAILURE);
         }
 
         struct pollfd watch_for_data = {.fd = fds[0], .events = POLLIN};
@@ -132,7 +153,6 @@ void clip_get_selection(clipboard *clip)
         ofr->data[i] = xmalloc(MAX_DATA_SIZE);
 
         int wait_time = WAIT_TIME_SHORT;
-
         if (!strncmp("image/png", ofr->types[i].type, strlen("image/png")) ||
             !strncmp("image/jpeg", ofr->types[i].type, strlen("image/jpeg")))
         {
@@ -172,7 +192,10 @@ void clip_get_selection(clipboard *clip)
             ofr->data[i] = xrealloc(ofr->data[i], ofr->len[i]);
         }
     }
+
     sync_buffers(clip);
+
+    return true;
 }
 
 offer_buffer *offer_init(void)

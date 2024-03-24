@@ -11,24 +11,30 @@
 #include "detection.h"
 #include "clipboard.h"
 
+struct length_type
+{
+    size_t length;
+    int type;
+};
+
 static char *find_exact_type(const void *data, size_t length)
 {
     magic_t magic = magic_open(MAGIC_MIME_TYPE | MAGIC_RAW);
     if (!magic)
     {
-        fprintf(stderr, "Failed to allocate memory\n");
+        perror("Failed to allocate memory");
         exit(EXIT_FAILURE);
     }
     if (magic_load(magic, NULL))
     {
-        fprintf(stderr, "Failed to load magic database\n");
+        perror("Failed to load magic database");
         exit(EXIT_FAILURE);
     }
 
     const char *tmp = magic_buffer(magic, data, length);
     if (!tmp)
     {
-        fprintf(stderr, "Failed to detect mime type, invalid data\n");
+        perror("Magic failed to detect mime type");
         exit(EXIT_FAILURE);
     }
 
@@ -43,19 +49,19 @@ static bool is_text(const void *data, size_t length)
     magic_t magic = magic_open(MAGIC_MIME_ENCODING);
     if (!magic)
     {
-        fprintf(stderr, "Failed to allocate memory\n");
+        perror("Failed to allocate memory");
         exit(EXIT_FAILURE);
     }
     if (magic_load(magic, NULL))
     {
-        fprintf(stderr, "Failed to load magic database\n");
+        perror("Failed to load magic database");
         exit(EXIT_FAILURE);
     }
 
     const char *tmp = magic_buffer(magic, data, length);
     if (!tmp)
     {
-        fprintf(stderr, "Failed to detect mime type, invalid data\n");
+        perror("Failed to detect mime type");
         exit(EXIT_FAILURE);
     }
 
@@ -71,8 +77,7 @@ static bool is_text(const void *data, size_t length)
 
 static bool is_utf8_text(const char *mime_type)
 {
-    if (!strcmp("TEXT", mime_type) || !strcmp("STRING", mime_type) ||
-        !strcmp("UTF8_STRING", mime_type) || !strcmp("text/plain", mime_type) ||
+    if (!strcmp("UTF8_STRING", mime_type) ||
         !strcmp("text/plain;charset=utf-8", mime_type))
     {
         return true;
@@ -86,7 +91,8 @@ static bool is_explicit_text(const char *mime_type)
     {
         return false;
     }
-    if (!strncmp("text/", mime_type, strlen("text/")))
+    if (!strncmp("text/", mime_type, strlen("text/")) ||
+        !strcmp("TEXT", mime_type) || !strcmp("STRING", mime_type))
     {
         return true;
     }
@@ -138,7 +144,7 @@ void guess_mime_types(source_buffer *src)
 
 uint8_t find_write_type(source_buffer *src)
 {
-    uint8_t utf8_text = 0, explicit_text = 0, any_text = 0, binary = 0;
+    int8_t utf8_text = -1, explicit_text = -1, any_text = -1, binary = -1;
 
     for (int i = 0; i < src->num_types; i++)
     {
@@ -160,15 +166,15 @@ uint8_t find_write_type(source_buffer *src)
         }
     }
 
-    if (utf8_text)
+    if (utf8_text != -1)
     {
         return utf8_text;
     }
-    else if (explicit_text)
+    else if (explicit_text != -1)
     {
         return explicit_text;
     }
-    else if (any_text)
+    else if (any_text != -1)
     {
         return any_text;
     }
@@ -198,7 +204,8 @@ void get_snippet(source_buffer *src)
     uint8_t snip_type = find_write_type(src);
 
     if (!is_utf8_text(src->types[snip_type].type) &&
-        !is_explicit_text(src->types[snip_type].type))
+        !is_explicit_text(src->types[snip_type].type) &&
+        !is_text(src->data[snip_type], src->len[snip_type]))
     {
         generate_stamp(src);
     }
@@ -225,15 +232,31 @@ void get_snippet(source_buffer *src)
     }
 }
 
+/* Sort length types in descending order */
+static int compare_size_t(const void *a, const void *b)
+{
+    return ((struct length_type *)b)->length -
+           ((struct length_type *)a)->length;
+}
+
 /* Generate a thumbnail of the first image in the source */
 void get_thumbnail(source_buffer *src)
 {
+    /* Get the largest image so thumbnail is of the best quality */
+    struct length_type lengths[src->num_types];
+    for (int i = 0; i < src->num_types; i++)
+    {
+        lengths[i].length = src->len[i];
+        lengths[i].type = i;
+    }
+    qsort(lengths, src->num_types, sizeof(struct length_type), compare_size_t);
+
     int type = -1;
     for (int i = 0; i < src->num_types; i++)
     {
-        if (is_image(src->types[i].type))
+        if (is_image(src->types[lengths[i].type].type))
         {
-            type = i;
+            type = lengths[i].type;
             break;
         }
     }
@@ -251,7 +274,10 @@ void get_thumbnail(source_buffer *src)
     status = MagickReadImageBlob(wand, src->data[type], src->len[type]);
     if (status == MagickFalse)
     {
-        fprintf(stderr, "Failed to read image\n");
+        perror("Failed to read image");
+        DestroyMagickWand(wand);
+        MagickWandTerminus();
+        return;
     }
 
     MagickSetImageFormat(wand, "jpeg");

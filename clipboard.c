@@ -36,7 +36,7 @@ clipboard *clip_init(void)
     clip->display = wl_display_connect(NULL);
     if (!clip->display)
     {
-        fprintf(stderr, "Failed to create display\n");
+        perror("wl_display_connect");
         exit(EXIT_FAILURE);
     }
 
@@ -46,7 +46,7 @@ clipboard *clip_init(void)
     wl_display_roundtrip(clip->display);
     if (!clip->cmng)
     {
-        fprintf(stderr, "The protocol wlr-data-control not supported\n");
+        fprintf(stderr, "The protocol wlr-data-control is not supported\n");
         exit(EXIT_FAILURE);
     }
 

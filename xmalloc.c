@@ -9,8 +9,8 @@ void *xmalloc(size_t size)
     void *ptr = malloc(size);
     if (!ptr)
     {
-        fprintf(stderr, "Failed to allocate memory\n");
-        exit(1);
+        perror("malloc");
+        exit(EXIT_FAILURE);
     }
     return ptr;
 }
@@ -20,8 +20,8 @@ void *xrealloc(void *ptr, size_t size)
     ptr = realloc(ptr, size);
     if (!ptr)
     {
-        fprintf(stderr, "Failed to allocate memory\n");
-        exit(1);
+        perror("realloc");
+        exit(EXIT_FAILURE);
     }
     return ptr;
 }
@@ -31,8 +31,8 @@ char *xstrdup(const char *s)
     char *duplicate = strdup(s);
     if (!duplicate)
     {
-        fprintf(stderr, "Failed to allocate memory\n");
-        exit(1);
+        perror("strdup");
+        exit(EXIT_FAILURE);
     }
     return duplicate;
 }

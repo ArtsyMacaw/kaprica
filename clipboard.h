@@ -13,14 +13,6 @@
 
 /* Read 64 KiB the capacity of pipes() buffer */
 #define READ_SIZE 65536 // Assumes 4k page size, fix at some point
-
-/* By default wait 100ms for the client to start writing data
- for images and other types that may take longer we wait a second
- If we succesfully received data we can safely wait for a while */
-#define WAIT_TIME_SHORT 10
-#define WAIT_TIME_LONG 2000
-#define WAIT_TIME_LONGEST 8000
-
 #define SNIPPET_SIZE 80
 
 // Turn these all into enums maybe?
@@ -82,7 +74,7 @@ typedef struct
 clipboard *clip_init(void);
 void clip_destroy(clipboard *clip);
 void clip_watch(clipboard *clip);
-void clip_get_selection(clipboard *clip);
+bool clip_get_selection(clipboard *clip);
 void clip_clear_selection(clipboard *clip);
 void clip_set_selection(clipboard *clip);
 

@@ -11,7 +11,7 @@
 
 enum defaults
 {
-    NUMBER_OF_SOURCES = 50,
+    NUMBER_OF_SOURCES = 35,
     WINDOW_WIDTH = 340,
     WINDOW_HEIGHT = 430
 };
@@ -355,6 +355,11 @@ static void activate(GtkApplication *app, gpointer user_data)
     widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
     widgets->db = database_open();
+    if (!widgets->db)
+    {
+        fprintf(stderr, "Could not locate history database.\n");
+        exit(EXIT_FAILURE);
+    }
 
     uint32_t total_sources = database_get_total_sources(widgets->db),
              offset = 0;
