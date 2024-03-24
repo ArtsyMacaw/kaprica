@@ -35,8 +35,7 @@ data_control_offer_mime_handler(void *data,
     if (ofr->num_types < (MAX_MIME_TYPES - 1))
     {
         uint8_t index = ofr->num_types;
-        ofr->types[index].type = xstrdup(mime_type);
-        ofr->types[index].pos = index;
+        ofr->types[index] = xstrdup(mime_type);
         ofr->num_types++;
     }
     else
@@ -102,7 +101,7 @@ void sync_buffers(clipboard *clip)
             src->data[src->num_types] = xmalloc(ofr->len[i]);
             memcpy(src->data[src->num_types], ofr->data[i], ofr->len[i]);
             src->len[src->num_types] = ofr->len[i];
-            src->types[src->num_types].type = xstrdup(ofr->types[i].type);
+            src->types[src->num_types] = xstrdup(ofr->types[i]);
             src->num_types++;
         }
     }
@@ -144,8 +143,7 @@ bool clip_get_selection(clipboard *clip)
 
         /* Events need to be dispatched and flushed so the other client
          * can recieve the fd */
-        zwlr_data_control_offer_v1_receive(ofr->offer, ofr->types[i].type,
-                                           fds[1]);
+        zwlr_data_control_offer_v1_receive(ofr->offer, ofr->types[i], fds[1]);
         wl_display_dispatch_pending(clip->display);
         wl_display_flush(clip->display);
 
@@ -153,8 +151,8 @@ bool clip_get_selection(clipboard *clip)
         ofr->data[i] = xmalloc(MAX_DATA_SIZE);
 
         int wait_time = WAIT_TIME_SHORT;
-        if (!strncmp("image/png", ofr->types[i].type, strlen("image/png")) ||
-            !strncmp("image/jpeg", ofr->types[i].type, strlen("image/jpeg")))
+        if (!strncmp("image/png", ofr->types[i], strlen("image/png")) ||
+            !strncmp("image/jpeg", ofr->types[i], strlen("image/jpeg")))
         {
             wait_time = WAIT_TIME_LONG;
         }
@@ -218,7 +216,7 @@ void offer_destroy(offer_buffer *ofr)
     for (int i = 0; i < ofr->num_types; i++)
     {
         free(ofr->data[i]);
-        free(ofr->types[i].type);
+        free(ofr->types[i]);
     }
     if (ofr->offer)
     {
@@ -238,8 +236,7 @@ void offer_clear(offer_buffer *ofr)
             free(ofr->data[i]);
             ofr->data[i] = NULL;
         }
-        free(ofr->types[i].type);
-        ofr->types[i].pos = 0;
+        free(ofr->types[i]);
         ofr->len[i] = 0;
         ofr->invalid_data[i] = false;
     }

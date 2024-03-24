@@ -438,7 +438,7 @@ void write_to_stdout(source_buffer *src)
     {
         for (int i = 0; i < src->num_types; i++)
         {
-            if (!strcmp(src->types[i].type, options.type))
+            if (!strcmp(src->types[i], options.type))
             {
                 type = i;
                 type_found = true;
@@ -519,7 +519,7 @@ int main(int argc, char *argv[])
         }
         else if (options.type)
         {
-            src->types[0].type = options.type;
+            src->types[0] = options.type;
         }
         else
         {
@@ -591,7 +591,7 @@ int main(int argc, char *argv[])
         {
             for (int i = 0; i < src->num_types; i++)
             {
-                printf("%s\n", src->types[i].type);
+                printf("%s\n", src->types[i]);
             }
             goto cleanup;
         }

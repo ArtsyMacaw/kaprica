@@ -24,19 +24,11 @@ typedef enum
     PRIMARY // Not implemented yet
 } clipboard_buffer;
 
-/* Mime type and where its data is located */
-// Remove this just, fix positioning when syncing buffers
-typedef struct
-{
-    char *type;
-    uint16_t pos;
-} mime_type;
-
 /* Buffer not managed by us */
 typedef struct
 {
     void *data[MAX_MIME_TYPES];
-    mime_type types[MAX_MIME_TYPES];
+    char *types[MAX_MIME_TYPES];
     size_t len[MAX_MIME_TYPES];
     bool invalid_data[MAX_MIME_TYPES];
     uint8_t num_types;
@@ -48,7 +40,7 @@ typedef struct
 typedef struct
 {
     void *data[MAX_MIME_TYPES];
-    mime_type types[MAX_MIME_TYPES];
+    char *types[MAX_MIME_TYPES];
     size_t len[MAX_MIME_TYPES];
     char *snippet;
     void *thumbnail;

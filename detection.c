@@ -115,12 +115,11 @@ void guess_mime_types(source_buffer *src)
     if (is_text(src->data[0], src->len[0]) || is_utf8_text(exact_type) ||
         is_explicit_text(exact_type))
     {
-        src->types[0] = (mime_type){.type = "TEXT", .pos = 0};
-        src->types[1] = (mime_type){.type = "STRING", .pos = 0};
-        src->types[2] = (mime_type){.type = "UTF8_STRING", .pos = 0};
-        src->types[3] = (mime_type){.type = "text/plain", .pos = 0};
-        src->types[4] =
-            (mime_type){.type = "text/plain;charset=utf-8", .pos = 0};
+        src->types[0] = "TEXT";
+        src->types[1] = "STRING";
+        src->types[2] = "UTF8_STRING";
+        src->types[3] = "text/plain";
+        src->types[4] = "text/plain;charset=utf-8";
         src->num_types += 5;
 
         src->data[0] = src->data[0];
@@ -137,7 +136,7 @@ void guess_mime_types(source_buffer *src)
     }
     else
     {
-        src->types[0] = (mime_type){.type = exact_type, .pos = 0};
+        src->types[0] = exact_type;
         src->num_types++;
     }
 }
@@ -148,11 +147,11 @@ uint8_t find_write_type(source_buffer *src)
 
     for (int i = 0; i < src->num_types; i++)
     {
-        if (is_utf8_text(src->types[i].type))
+        if (is_utf8_text(src->types[i]))
         {
             utf8_text = i;
         }
-        else if (is_explicit_text(src->types[i].type))
+        else if (is_explicit_text(src->types[i]))
         {
             explicit_text = i;
         }
@@ -194,17 +193,17 @@ static void generate_stamp(source_buffer *src)
     /* Replace '\n' with a space */
     src->snippet[strlen(src->snippet) - 1] = ' ';
 
-    size_t size = strlen(src->types[0].type) + strlen(src->snippet) + 1;
+    size_t size = strlen(src->types[0]) + strlen(src->snippet) + 1;
     src->snippet = xrealloc(src->snippet, (size * sizeof(char)));
-    src->snippet = strcat(src->snippet, src->types[0].type);
+    src->snippet = strcat(src->snippet, src->types[0]);
 }
 
 void get_snippet(source_buffer *src)
 {
     uint8_t snip_type = find_write_type(src);
 
-    if (!is_utf8_text(src->types[snip_type].type) &&
-        !is_explicit_text(src->types[snip_type].type) &&
+    if (!is_utf8_text(src->types[snip_type]) &&
+        !is_explicit_text(src->types[snip_type]) &&
         !is_text(src->data[snip_type], src->len[snip_type]))
     {
         generate_stamp(src);
@@ -254,7 +253,7 @@ void get_thumbnail(source_buffer *src)
     int type = -1;
     for (int i = 0; i < src->num_types; i++)
     {
-        if (is_image(src->types[lengths[i].type].type))
+        if (is_image(src->types[lengths[i].type]))
         {
             type = lengths[i].type;
             break;

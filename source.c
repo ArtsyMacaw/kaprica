@@ -18,7 +18,7 @@ data_control_source_send_handler(void *data,
 
     for (int i = 0; i < src->num_types; i++)
     {
-        if (!strcmp(mime_type, src->types[i].type))
+        if (!strcmp(mime_type, src->types[i]))
         {
             write(fd, src->data[i], src->len[i]);
             close(fd);
@@ -61,7 +61,7 @@ void clip_set_selection(clipboard *clip)
 
     for (int i = 0; i < src->num_types; i++)
     {
-        zwlr_data_control_source_v1_offer(data_src, src->types[i].type);
+        zwlr_data_control_source_v1_offer(data_src, src->types[i]);
     }
 
     zwlr_data_control_device_v1_set_selection(clip->dmng, data_src);
@@ -85,7 +85,7 @@ void source_destroy(source_buffer *src)
     for (int i = 0; i < src->num_types; i++)
     {
         free(src->data[i]);
-        free(src->types[i].type);
+        free(src->types[i]);
     }
     free(src->snippet);
     if (src->source)
@@ -104,7 +104,7 @@ void source_clear(source_buffer *src)
     for (int i = 0; i < src->num_types; i++)
     {
         free(src->data[i]);
-        free(src->types[i].type);
+        free(src->types[i]);
         src->len[i] = 0;
     }
     free(src->snippet);

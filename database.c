@@ -227,8 +227,8 @@ void database_insert_source(sqlite3 *db, source_buffer *src)
                        INT);
         bind_statement(insert_source_content, DATA_BINDING, src->data[i],
                        src->len[i], BLOB);
-        bind_statement(insert_source_content, MIME_TYPE_BINDING,
-                       src->types[i].type, strlen(src->types[i].type), TEXT);
+        bind_statement(insert_source_content, MIME_TYPE_BINDING, src->types[i],
+                       strlen(src->types[i]), TEXT);
 
         execute_statement(insert_source_content);
 
@@ -379,8 +379,7 @@ bool database_get_source(sqlite3 *db, int64_t id, source_buffer *src)
             perror("Failed to allocate memory");
             exit(EXIT_FAILURE);
         }
-        src->types[src->num_types].type = xstrdup(tmp_text);
-        src->types[src->num_types].pos = src->num_types;
+        src->types[src->num_types] = xstrdup(tmp_text);
 
         src->num_types++;
     }
