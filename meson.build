@@ -26,6 +26,7 @@ gtk = dependency('gtk4')
 imagemagick = dependency('MagickWand')
 wayland_scanner = find_program('wayland-scanner')
 magic = cc.find_library('magic')
+xxhash = cc.find_library('xxhash')
 
 wlr_prot = 'protocol/wlr-data-control-unstable-v1.xml'
 wlr_data = 'wlr-data-control'
@@ -50,13 +51,14 @@ lib = static_library(
   'clipboard.c',
   'source.c',
   'offer.c',
-  'database.c',
   'database.h',
+  'database.c',
   'xmalloc.h',
   'xmalloc.c',
   'detection.h',
   'detection.c',
-  dependencies: [wayland, sql, magic, gtk, imagemagick]
+  'hash.h',
+  dependencies: [wayland, sql, magic, gtk, imagemagick, xxhash]
 )
 
 executable('kapd', 'kapricad.c', link_with: lib)

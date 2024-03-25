@@ -16,7 +16,8 @@ static sqlite3_stmt *create_main_table, *create_content_table, *insert_entry,
     *select_latest_entries, *select_entry, *find_matching_entries,
     *select_snippet, *find_matching_types, *pragma_journal_wal, *delete_entry,
     *total_entries, *select_thumbnail, *create_data_index, *create_mime_index,
-    *create_snippet_index, *create_thumbnail_index, *create_timestamp_index;
+    *create_snippet_index, *create_thumbnail_index, *create_timestamp_index,
+    *create_hash_index;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -31,6 +32,7 @@ enum datatype
 /* Insert into clipboard_history table */
 #define SNIPPET_BINDING 1
 #define THUMBNAIL_BINDING 2
+#define HASH_BINDING 3
 /* Insert into content table*/
 #define ENTRY_BINDING 1
 #define LENGTH_BINDING 2
@@ -68,7 +70,8 @@ static void prepare_bootstrap_statements(sqlite3 *db)
         "    history_id INTEGER PRIMARY KEY,"
         "    timestamp DATETIME NOT NULL DEFAULT (datetime('now')),"
         "    snippet TEXT NOT NULL,"
-        "    thumbnail BLOB);";
+        "    thumbnail BLOB,"
+        "    hash TEXT NOT NULL);";
     prepare_statement(db, main_table, &create_main_table);
 
     const char content_table[] =
@@ -80,7 +83,12 @@ static void prepare_bootstrap_statements(sqlite3 *db)
         "    FOREIGN KEY (entry) REFERENCES clipboard_history(history_id)"
         "       ON DELETE CASCADE);";
     prepare_statement(db, content_table, &create_content_table);
+}
 
+/* Prepare all index statements, should only be needed to be called by
+ * kapricad when creating the database */
+static void prepare_index_statements(sqlite3 *db)
+{
     const char data_index[] = "CREATE INDEX IF NOT EXISTS data_index"
                               "    ON content (data);";
     prepare_statement(db, data_index, &create_data_index);
@@ -100,6 +108,10 @@ static void prepare_bootstrap_statements(sqlite3 *db)
     const char timestamp_index[] = "CREATE INDEX IF NOT EXISTS timestamp_index"
                                    "    ON clipboard_history (timestamp);";
     prepare_statement(db, timestamp_index, &create_timestamp_index);
+
+    const char hash_index[] = "CREATE INDEX IF NOT EXISTS hash_index"
+                              "    ON clipboard_history (hash);";
+    prepare_statement(db, hash_index, &create_hash_index);
 }
 
 /* Preparing statements is relatively costly resource wise
@@ -108,7 +120,7 @@ static void prepare_bootstrap_statements(sqlite3 *db)
 static void prepare_all_statements(sqlite3 *db)
 {
     const char insert_entry_history[] =
-        "INSERT INTO clipboard_history (snippet, thumbnail) VALUES (?1, ?2);";
+        "INSERT INTO clipboard_history (snippet, thumbnail, hash) VALUES (?1, ?2, ?3);";
     prepare_statement(db, insert_entry_history, &insert_entry);
 
     const char entry_content[] =
@@ -233,6 +245,8 @@ void database_insert_entry(sqlite3 *db, source_buffer *src)
                    strlen(src->snippet), TEXT);
     bind_statement(insert_entry, THUMBNAIL_BINDING, src->thumbnail,
                    src->thumbnail_len, BLOB);
+    bind_statement(insert_entry, HASH_BINDING, src->data_hash, strlen(src->data_hash),
+                   TEXT);
 
     execute_statement(insert_entry);
 
@@ -410,6 +424,7 @@ bool database_get_entry(sqlite3 *db, int64_t id, source_buffer *src)
     return true;
 }
 
+/* Create a new database if one does not already exist */
 sqlite3 *database_init(void)
 {
     sqlite3 *db;
@@ -422,22 +437,25 @@ sqlite3 *database_init(void)
     }
 
     prepare_bootstrap_statements(db);
-
-    execute_statement(pragma_foreign_keys);
     // execute_statement(pragma_journal_wal);
+    execute_statement(pragma_foreign_keys);
     execute_statement(create_main_table);
     execute_statement(create_content_table);
+
+    prepare_index_statements(db);
     execute_statement(create_data_index);
     execute_statement(create_timestamp_index);
     execute_statement(create_mime_index);
     execute_statement(create_snippet_index);
     execute_statement(create_thumbnail_index);
+    execute_statement(create_hash_index);
 
     prepare_all_statements(db);
 
     return db;
 }
 
+/* Open an existing database */
 sqlite3 *database_open(void)
 {
     if (access("/home/haden/.kaprica/history.db", F_OK) == -1)
@@ -496,6 +514,7 @@ void database_destroy(sqlite3 *db)
     sqlite3_finalize(create_snippet_index);
     sqlite3_finalize(create_thumbnail_index);
     sqlite3_finalize(create_timestamp_index);
+    sqlite3_finalize(create_hash_index);
     sqlite3_db_release_memory(db);
     sqlite3_close(db);
 }

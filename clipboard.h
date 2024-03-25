@@ -44,6 +44,7 @@ typedef struct
     char *types[MAX_MIME_TYPES];
     size_t len[MAX_MIME_TYPES];
     char *snippet;
+    char *data_hash;
     void *thumbnail;
     size_t thumbnail_len;
     bool offer_once;

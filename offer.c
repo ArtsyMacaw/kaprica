@@ -9,8 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "detection.h"
 #include "clipboard.h"
+#include "hash.h"
+#include "detection.h"
 #include "wlr-data-control.h"
 #include "xmalloc.h"
 
@@ -110,6 +111,7 @@ void sync_buffers(clipboard *clip)
     src->snippet = calloc(sizeof(char), SNIPPET_SIZE);
     get_snippet(src);
     get_thumbnail(src);
+    src->data_hash = generate_hash(src);
 }
 
 void clip_watch(clipboard *clip)
