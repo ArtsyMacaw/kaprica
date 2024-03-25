@@ -380,10 +380,9 @@ static uint32_t seperate_stdin_into_ids(int64_t *ids)
 {
     uint32_t num_of_ids = 0, tmp = 0;
     size_t len = 0;
-    ssize_t nread = 0;
     char *token = NULL;
 
-    while ((nread = getline(&token, &len, stdin)) != -1)
+    while (getline(&token, &len, stdin) != -1)
     {
         tmp = atoi(token);
         if (!tmp)
