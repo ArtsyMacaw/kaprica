@@ -120,7 +120,8 @@ static void prepare_index_statements(sqlite3 *db)
 static void prepare_all_statements(sqlite3 *db)
 {
     const char insert_entry_history[] =
-        "INSERT INTO clipboard_history (snippet, thumbnail, hash) VALUES (?1, ?2, ?3);";
+        "INSERT INTO clipboard_history (snippet, thumbnail, hash)"
+        "                       VALUES (?1,      ?2,        ?3);";
     prepare_statement(db, insert_entry_history, &insert_entry);
 
     const char entry_content[] =
@@ -245,8 +246,8 @@ void database_insert_entry(sqlite3 *db, source_buffer *src)
                    strlen(src->snippet), TEXT);
     bind_statement(insert_entry, THUMBNAIL_BINDING, src->thumbnail,
                    src->thumbnail_len, BLOB);
-    bind_statement(insert_entry, HASH_BINDING, src->data_hash, strlen(src->data_hash),
-                   TEXT);
+    bind_statement(insert_entry, HASH_BINDING, src->data_hash,
+                   strlen(src->data_hash), TEXT);
 
     execute_statement(insert_entry);
 
