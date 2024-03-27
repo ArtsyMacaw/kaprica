@@ -122,7 +122,11 @@ void source_clear(source_buffer *src)
         {
             free(src->data[i]);
         }
-        free(src->types[i]);
+        /* If a source is manually constructed, it may not have types */
+        if (src->types[i])
+        {
+            free(src->types[i]);
+        }
         src->len[i] = 0;
     }
 

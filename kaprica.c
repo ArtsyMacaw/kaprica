@@ -40,7 +40,7 @@ struct config
     bool search_by_type;
     char *seat;
     char *type;
-    uint16_t limit;
+    int64_t limit;
     enum verb action;
 };
 
@@ -54,7 +54,7 @@ static struct config options = {.foreground = false,
                                 .search_by_type = false,
                                 .clear = false,
                                 .paste_once = false,
-                                .limit = 10,
+                                .limit = -1,
                                 .seat = NULL,
                                 .type = NULL,
                                 .action = 0};
@@ -338,11 +338,13 @@ static size_t trim_newline(void *data, size_t length)
 }
 
 /* Only used if were passed a file via '<' on the cli */
-static bool get_stdin(source_buffer *input)
+static bool read_stdin_fd(source_buffer *input)
 {
     input->data[0] = xmalloc(MAX_DATA_SIZE);
     input->len[0] = fread(input->data[0], 1, MAX_DATA_SIZE, stdin);
     input->data[0] = xrealloc(input->data[0], input->len[0]);
+    input->types[0] = NULL;
+    input->num_types = 1;
     if (!feof(stdin))
     {
         fprintf(stderr, "File is too large to copy\n");
@@ -354,79 +356,123 @@ static bool get_stdin(source_buffer *input)
     }
 }
 
-/* Processes argv[] into an array of integers */
-static uint32_t get_ids(int args, char *argv[], int64_t *ids)
+/* Concatenates argv with spaces in between */
+static bool concatenate_argv(int args, char *argv[],
+                               source_buffer *input)
 {
-    int num_of_ids = args;
-    uint32_t tmp = 0, j = 0;
-    for (int i = 0; i < num_of_ids; i++)
+    input->num_types = 1;
+    input->types[0] = NULL;
+
+    if (args == 1)
     {
-        tmp = atoi(argv[i]);
+        input->data[0] = xstrdup(argv[0]);
+        input->len[0] = strlen(argv[0]);
+        return true;
+    }
+
+    int total = args;
+    for (int i = 0; i < args; i++)
+    {
+        total += strlen(argv[i]);
+    }
+
+    if (total > MAX_DATA_SIZE)
+    {
+        fprintf(stderr, "Data is too large to copy\n");
+        return false;
+    }
+
+    input->data[0] = xmalloc((sizeof(char) * total) + 1);
+    /* strcat requires string to be null-ended */
+    ((char *)input->data[0])[0] = '\0';
+
+    for (int i = 0; i < args; i++)
+    {
+        strcat(input->data[0], argv[i]);
+        if (i != (args - 1))
+        {
+            strcat(input->data[0], " ");
+        }
+    }
+    input->len[0] = strlen(input->data[0]);
+
+    return true;
+}
+
+static bool get_stdin(int args, char *input[], source_buffer *output)
+{
+    if (isatty(STDIN_FILENO))
+    {
+        return concatenate_argv(args, input, output);
+    }
+    else
+    {
+        return read_stdin_fd(output);
+    }
+}
+
+/* Processes argv[] into an array of integers */
+static int64_t *seperate_argv_into_ids(int args, char *argv[], uint32_t *num_of_ids)
+{
+    int64_t *ids = xmalloc(sizeof(int64_t) * args);
+    int64_t tmp;
+    for (int i = 0; i < args; i++)
+    {
+        tmp = atoll(argv[i]);
         if (!tmp)
         {
             fprintf(stderr, "Invalid id %s\n", argv[i]);
         }
         else
         {
-            ids[j] = tmp;
-            j++;
+            ids[*num_of_ids] = tmp;
+            (*num_of_ids)++;
         }
     }
-    return j;
+    return ids;
 }
 
 /* Processes stdin into an array of integers */
-static uint32_t seperate_stdin_into_ids(int64_t *ids)
+static int64_t *seperate_stdin_into_ids(uint32_t *num_of_ids)
 {
-    uint32_t num_of_ids = 0, tmp = 0;
+    size_t array_size = 100;
+    int64_t *ids = xmalloc(sizeof(int64_t) * array_size);
     size_t len = 0;
     char *token = NULL;
 
     while (getline(&token, &len, stdin) != -1)
     {
-        tmp = atoi(token);
-        if (!tmp)
+        if (array_size == *num_of_ids)
+        {
+            array_size *= 2;
+            ids = xrealloc(ids, sizeof(int64_t) * array_size);
+        }
+
+        ids[*num_of_ids] = atoll(token);
+        if (!ids[*num_of_ids])
         {
             fprintf(stderr, "Invalid id %s\n", token);
         }
         else
         {
-            ids[num_of_ids] = tmp;
-            num_of_ids++;
+            (*num_of_ids)++;
         }
     }
+    ids = xrealloc(ids, sizeof(int64_t) * (*num_of_ids));
 
-    return num_of_ids;
+    return ids;
 }
 
-/* Concatenates argv with spaces in between */
-static size_t concatenate_argv(uint16_t args, char *input[],
-                               source_buffer *output)
+static int64_t *get_ids(int args, char *argv[], uint32_t *num_of_ids)
 {
-    if (args == 1)
+    if (isatty(STDIN_FILENO))
     {
-        output->data[0] = xstrdup(input[0]);
-        return strlen(output->data[0]);
+        return seperate_argv_into_ids(args, argv, num_of_ids);
     }
-
-    int total = args;
-    for (int i = 0; i < args; i++)
+    else
     {
-        total += strlen(input[i]);
+        return seperate_stdin_into_ids(num_of_ids);
     }
-    output->data[0] = xmalloc((sizeof(char) * total) + 1);
-    /* strcat requires string to be null-ended */
-    ((char *)output->data[0])[0] = '\0';
-
-    for (int i = 0; i < args; i++)
-    {
-        strcat(output->data[0], input[i]);
-        if (i != (args - 1))
-        {
-            strcat(output->data[0], " ");
-        }
-    }
-    return (strlen(output->data[0]));
 }
 
 void write_to_stdout(source_buffer *src)
@@ -459,10 +505,14 @@ int main(int argc, char *argv[])
 {
     parse_options(argc, argv);
 
+    /* Separate already processed arguments from the rest of the argv */
+    int num_of_args = argc - optind;
+    char **args = argv + optind;
+
     sqlite3 *db = NULL;
     int64_t *ids = NULL;
-    clip = clip_init();
 
+    clip = clip_init();
     source_buffer *src = clip->selection_source;
 
     if (options.action == COPY)
@@ -473,32 +523,26 @@ int main(int argc, char *argv[])
             wl_display_roundtrip(clip->display);
             goto cleanup;
         }
-
-        else if (argv[optind])
+        else if (options.id)
         {
-            /* Pass everything not handled by getopt or main */
-            src->len[0] =
-                concatenate_argv((argc - optind), (argv + optind), src);
-        }
-        else
-        {
-            if (!get_stdin(src))
+            db = database_init();
+            uint32_t num_of_ids = 0;
+            ids = get_ids(num_of_args, args, &num_of_ids);
+            if (num_of_ids != 1)
             {
+                fprintf(stderr, "Only one id can be copied at a time\n");
+                goto cleanup;
+            }
+            if (!database_get_entry(db, ids[0], src))
+            {
+                printf("ID: %lu not found\n", ids[0]);
                 goto cleanup;
             }
         }
-
-        if (options.id)
+        else
         {
-            db = database_init();
-            int64_t id = atoi(src->data[0]);
-            if (!id)
+            if (!get_stdin(num_of_args, args, src))
             {
-                printf("Invalid input for --id\n");
-            }
-            if (!database_get_entry(db, id, src))
-            {
-                printf("ID: %lu not found\n", id);
                 goto cleanup;
             }
         }
@@ -549,18 +593,7 @@ int main(int argc, char *argv[])
         {
             db = database_init();
             uint32_t num_of_ids = 0;
-            if (argv[optind])
-            {
-                ids = xmalloc(sizeof(int64_t) * (argc - optind));
-                num_of_ids = get_ids((argc - optind), (argv + optind), ids);
-                ids = xrealloc(ids, sizeof(int64_t) * num_of_ids);
-            }
-            else
-            {
-                ids = xmalloc(sizeof(int64_t) * 100);
-                num_of_ids = seperate_stdin_into_ids(ids);
-                ids = xrealloc(ids, sizeof(int64_t) * num_of_ids);
-            }
+            ids = get_ids(num_of_args, args, &num_of_ids);
 
             for (int i = 0; i < num_of_ids; i++)
             {
@@ -592,22 +625,26 @@ int main(int argc, char *argv[])
             {
                 printf("%s\n", src->types[i]);
             }
-            goto cleanup;
         }
-
-        write_to_stdout(src);
+        else
+        {
+            write_to_stdout(src);
+        }
     }
     else if (options.action == SEARCH)
     {
         db = database_init();
-        if (argv[optind])
+        if (!get_stdin(num_of_args, args, src))
         {
-            /* Pass everything not handled by getopt or main */
-            src->len[0] =
-                concatenate_argv((argc - optind), (argv + optind), src);
+            goto cleanup;
         }
 
+        if (options.limit == -1)
+        {
+            options.limit = database_get_total_entries(db);
+        }
         ids = xmalloc(sizeof(int64_t) * options.limit);
+
         uint32_t found = database_find_matching_entries(
             db, src->data[0], src->len[0], options.limit, ids,
             options.search_by_type);
@@ -649,28 +686,22 @@ int main(int argc, char *argv[])
     else if (options.action == DELETE)
     {
         db = database_init();
-        if (argv[optind] && !options.id)
-        {
-            /* Pass everything not handled by getopt or main */
-            src->len[0] =
-                concatenate_argv((argc - optind), (argv + optind), src);
-        }
-
-        ids = xmalloc(sizeof(int64_t) * options.limit);
         uint32_t found = 0;
         if (options.id)
         {
-            if (argv[optind])
-            {
-                found = get_ids((argc - optind), (argv + optind), ids);
-            }
-            else
-            {
-                found = seperate_stdin_into_ids(ids);
-            }
+            ids = get_ids(num_of_args, args, &found);
         }
         else
         {
+            if (!get_stdin(num_of_args, args, src))
+            {
+                goto cleanup;
+            }
+            if (options.limit == -1)
+            {
+                options.limit = database_get_total_entries(db);
+            }
+            ids = xmalloc(sizeof(int64_t) * options.limit);
             found = database_find_matching_entries(db, src->data[0],
                                                    src->len[0], options.limit,
                                                    ids, options.search_by_type);
