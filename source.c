@@ -83,13 +83,24 @@ source_buffer *source_init(void)
 
 void source_destroy(source_buffer *src)
 {
+    /* Source may have been cleared before being destroyed
+     * so all the data may have already been freed */
     for (int i = 0; i < src->num_types; i++)
     {
-        free(src->data[i]);
+        if (src->data[i])
+        {
+            free(src->data[i]);
+        }
         free(src->types[i]);
     }
-    free(src->snippet);
-    free(src->data_hash);
+    if (src->snippet)
+    {
+        free(src->snippet);
+    }
+    if (src->data_hash)
+    {
+        free(src->data_hash);
+    }
     if (src->source)
     {
         zwlr_data_control_source_v1_destroy(src->source);
@@ -105,15 +116,31 @@ void source_clear(source_buffer *src)
 {
     for (int i = 0; i < src->num_types; i++)
     {
-        free(src->data[i]);
+        /* The data array may have several pointers to the same memory
+         * so we need to check if it has already been freed */
+        if (src->data[i])
+        {
+            free(src->data[i]);
+        }
         free(src->types[i]);
         src->len[i] = 0;
     }
-    free(src->data_hash);
+
+    /* Sources retrieved from the database won't have a hash */
+    if (src->data_hash)
+    {
+        free(src->data_hash);
+        src->data_hash = NULL;
+    }
+
     free(src->snippet);
+    src->snippet = NULL;
+
     src->num_types = 0;
     src->expired = false;
     src->offer_once = false;
+
+    /* Sources that are not images won't have a thumbnail */
     if (src->thumbnail)
     {
         free(src->thumbnail);

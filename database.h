@@ -9,7 +9,7 @@ sqlite3 *database_init(void);
 sqlite3 *database_open(void);
 void database_insert_entry(sqlite3 *db, source_buffer *src);
 uint32_t database_get_total_entries(sqlite3 *db);
-uint32_t database_get_latest_entries(sqlite3 *db, uint16_t num_of_entries,
+uint32_t database_get_latest_entries(sqlite3 *db, uint32_t num_of_entries,
                                      uint32_t offset, int64_t *list_of_ids);
 void database_delete_entry(sqlite3 *db, int64_t id);
 char *database_get_snippet(sqlite3 *db, int64_t id);

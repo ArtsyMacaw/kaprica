@@ -69,10 +69,10 @@ void clip_destroy(clipboard *clip)
         offer_destroy(clip->selection_offer);
     }
 
-    wl_registry_destroy(clip->registry);
-    zwlr_data_control_device_v1_destroy(clip->dmng);
     zwlr_data_control_manager_v1_destroy(clip->cmng);
+    zwlr_data_control_device_v1_destroy(clip->dmng);
     wl_seat_destroy(clip->seat);
+    wl_registry_destroy(clip->registry);
     wl_display_disconnect(clip->display);
     free(clip);
 }

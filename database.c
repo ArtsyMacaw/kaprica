@@ -10,14 +10,22 @@
 #include "clipboard.h"
 #include "xmalloc.h"
 
-/* Every statement we intend to use */
-static sqlite3_stmt *create_main_table, *create_content_table, *insert_entry,
-    *insert_entry_content, *delete_old_entries, *pragma_foreign_keys,
-    *select_latest_entries, *select_entry, *find_matching_entries,
-    *select_snippet, *find_matching_types, *pragma_journal_wal, *delete_entry,
-    *total_entries, *select_thumbnail, *create_data_index, *create_mime_index,
+/* Bootstrapping statements */
+static sqlite3_stmt *create_main_table, *create_content_table,
+    *pragma_foreign_keys, *pragma_journal_wal;
+/* Index statements */
+static sqlite3_stmt *create_data_index, *create_mime_index,
     *create_snippet_index, *create_thumbnail_index, *create_timestamp_index,
     *create_hash_index;
+/* Insertion statements */
+static sqlite3_stmt *insert_entry, *insert_entry_content;
+/* Search statements */
+static sqlite3_stmt *find_matching_entries, *find_matching_types;
+/* Retrieval statements */
+static sqlite3_stmt *select_latest_entries, *select_entry, *select_snippet,
+    *select_thumbnail, *total_entries;
+/* Deletion statements */
+static sqlite3_stmt *delete_old_entries, *delete_entry;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -272,7 +280,7 @@ void database_insert_entry(sqlite3 *db, source_buffer *src)
     }
 }
 
-uint32_t database_get_latest_entries(sqlite3 *db, uint16_t num_of_entries,
+uint32_t database_get_latest_entries(sqlite3 *db, uint32_t num_of_entries,
                                      uint32_t offset, int64_t *list_of_ids)
 {
     bind_statement(select_latest_entries, ENTRY_BINDING, &num_of_entries, 0,
