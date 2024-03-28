@@ -120,7 +120,7 @@ void guess_mime_types(source_buffer *src)
         src->types[2] = "UTF8_STRING";
         src->types[3] = "text/plain";
         src->types[4] = "text/plain;charset=utf-8";
-        src->num_types += 5;
+        src->num_types = 5;
 
         src->data[0] = src->data[0];
         src->data[1] = src->data[0];
