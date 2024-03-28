@@ -23,10 +23,10 @@ static sqlite3_stmt *insert_entry, *insert_entry_content;
 static sqlite3_stmt *find_matching_entries, *find_matching_types;
 /* Retrieval statements */
 static sqlite3_stmt *select_latest_entries, *select_entry, *select_snippet,
-    *select_thumbnail, *total_entries;
+    *select_thumbnail, *total_entries, *select_size;
 /* Deletion statements */
-static sqlite3_stmt *delete_entry, *delete_old_entries,
-    *delete_duplicate_entries;
+static sqlite3_stmt *delete_entry, *delete_old_entries, *delete_last_entries,
+    *delete_duplicate_entries, *delete_large_entries;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -138,14 +138,10 @@ static void prepare_all_statements(sqlite3 *db)
         "    VALUES          (?1,    ?2,     ?3,   ?4);";
     prepare_statement(db, entry_content, &insert_entry_content);
 
-    const char remove_old_entry[] =
-        "DELETE FROM clipboard_history"
-        "    WHERE timestamp < (date('now', ? || ' days'));";
-    prepare_statement(db, remove_old_entry, &delete_old_entries);
-
-    const char remove_entry[] = "DELETE FROM clipboard_history"
-                                "    WHERE history_id = ?1;";
-    prepare_statement(db, remove_entry, &delete_entry);
+    const char get_size[] = "SELECT page_count * page_size"
+                            "    FROM pragma_page_count,"
+                            "         pragma_page_size;";
+    prepare_statement(db, get_size, &select_size);
 
     const char get_latest_entries[] = "SELECT history_id FROM clipboard_history"
                                       "    ORDER BY timestamp DESC"
@@ -164,6 +160,9 @@ static void prepare_all_statements(sqlite3 *db)
                                  "   WHERE history_id = ?1;";
     prepare_statement(db, get_thumbnail, &select_thumbnail);
 
+    const char get_total_entries[] = "SELECT COUNT(*) FROM clipboard_history;";
+    prepare_statement(db, get_total_entries, &total_entries);
+
     const char find_entry[] = "SELECT entry FROM content"
                               "    WHERE data LIKE '%' || ?1 || '%';";
     prepare_statement(db, find_entry, &find_matching_entries);
@@ -172,17 +171,38 @@ static void prepare_all_statements(sqlite3 *db)
                                    "    WHERE mime_type LIKE '%' || ?1 || '%';";
     prepare_statement(db, find_entry_type, &find_matching_types);
 
-    const char get_total_entries[] = "SELECT COUNT(*) FROM clipboard_history;";
-    prepare_statement(db, get_total_entries, &total_entries);
+    const char remove_entry[] = "DELETE FROM clipboard_history"
+                                "    WHERE history_id = ?1;";
+    prepare_statement(db, remove_entry, &delete_entry);
 
-    const char delete_duplicates[] = "DELETE FROM clipboard_history"
+    const char remove_old_entry[] =
+        "DELETE FROM clipboard_history"
+        "    WHERE timestamp < (date('now', ? || ' days'));";
+    prepare_statement(db, remove_old_entry, &delete_old_entries);
+
+    const char remove_last_entries[] = "DELETE FROM clipboard_history"
+                                       "    WHERE history_id IN("
+                                       "        SELECT history_id"
+                                       "            FROM clipboard_history"
+                                       "            ORDER BY timestamp DESC"
+                                       "            LIMIT ?1);";
+    prepare_statement(db, remove_last_entries, &delete_last_entries);
+
+    const char remove_duplicates[] = "DELETE FROM clipboard_history"
                                      "    WHERE history_id NOT IN("
                                      "        SELECT MAX(history_id)"
                                      "            FROM clipboard_history"
                                      "            GROUP BY hash"
                                      "        ORDER BY timestamp DESC"
                                      "    );";
-    prepare_statement(db, delete_duplicates, &delete_duplicate_entries);
+    prepare_statement(db, remove_duplicates, &delete_duplicate_entries);
+
+    const char remove_large_entries[] = "DELETE FROM clipboard_history"
+                                        "    WHERE history_id IN("
+                                        "        SELECT DISTINCT entry FROM content"
+                                        "            ORDER BY length DESC"
+                                        "            LIMIT ?1);";
+    prepare_statement(db, remove_large_entries, &delete_large_entries);
 }
 
 static int execute_statement(sqlite3_stmt *stmt)
@@ -235,20 +255,6 @@ static void bind_statement(sqlite3_stmt *stmt, uint16_t literal, void *data,
     }
 }
 
-uint32_t database_get_total_entries(sqlite3 *db)
-{
-    int ret = execute_statement(total_entries);
-    if (ret == SQLITE_DONE)
-    {
-        return 0;
-    }
-
-    uint32_t total = sqlite3_column_int(total_entries, 0);
-    sqlite3_reset(total_entries);
-
-    return total;
-}
-
 void database_delete_entry(sqlite3 *db, int64_t id)
 {
     bind_statement(delete_entry, ID_BINDING, &id, 0, INT);
@@ -256,6 +262,44 @@ void database_delete_entry(sqlite3 *db, int64_t id)
 
     sqlite3_reset(delete_entry);
     sqlite3_clear_bindings(delete_entry);
+}
+
+uint32_t database_delete_duplicate_entries(sqlite3 *db)
+{
+    execute_statement(delete_duplicate_entries);
+    sqlite3_reset(delete_duplicate_entries);
+
+    return sqlite3_changes(db);
+}
+
+uint32_t database_delete_old_entries(sqlite3 *db, uint32_t days)
+{
+    bind_statement(delete_old_entries, DATE_BINDING, &days, 0, INT);
+    execute_statement(delete_old_entries);
+    sqlite3_reset(delete_old_entries);
+    sqlite3_clear_bindings(delete_old_entries);
+
+    return sqlite3_changes(db);
+}
+
+uint32_t database_delete_last_entries(sqlite3 *db, uint32_t num_of_entries)
+{
+    bind_statement(delete_last_entries, ENTRY_BINDING, &num_of_entries, 0, INT);
+    execute_statement(delete_last_entries);
+    sqlite3_reset(delete_last_entries);
+    sqlite3_clear_bindings(delete_last_entries);
+
+    return sqlite3_changes(db);
+}
+
+uint32_t database_delete_largest_entries(sqlite3 *db, uint32_t num_of_entries)
+{
+    bind_statement(delete_large_entries, ENTRY_BINDING, &num_of_entries, 0, INT);
+    execute_statement(delete_large_entries);
+    sqlite3_reset(delete_large_entries);
+    sqlite3_clear_bindings(delete_large_entries);
+
+    return sqlite3_changes(db);
 }
 
 void database_insert_entry(sqlite3 *db, source_buffer *src)
@@ -289,27 +333,6 @@ void database_insert_entry(sqlite3 *db, source_buffer *src)
         sqlite3_clear_bindings(insert_entry_content);
     }
 }
-
-uint32_t database_get_latest_entries(sqlite3 *db, uint32_t num_of_entries,
-                                     uint32_t offset, int64_t *list_of_ids)
-{
-    bind_statement(select_latest_entries, ENTRY_BINDING, &num_of_entries, 0,
-                   INT);
-    bind_statement(select_latest_entries, LENGTH_BINDING, &offset, 0, INT);
-
-    int counter = 0;
-    while (execute_statement(select_latest_entries) != SQLITE_DONE)
-    {
-        list_of_ids[counter] = sqlite3_column_int(select_latest_entries, 0);
-        counter++;
-    }
-
-    sqlite3_reset(select_latest_entries);
-    sqlite3_clear_bindings(select_latest_entries);
-
-    return counter;
-}
-
 uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
                                         uint32_t num_of_entries,
                                         int64_t *list_of_ids,
@@ -361,6 +384,50 @@ uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
     sqlite3_clear_bindings(search);
 
     return counter;
+}
+
+uint64_t database_get_size(sqlite3 *db)
+{
+    execute_statement(select_size);
+    uint64_t size = sqlite3_column_int(select_size, 0);
+    sqlite3_reset(select_size);
+
+    return size;
+}
+
+uint32_t database_get_latest_entries(sqlite3 *db, uint32_t num_of_entries,
+                                     uint32_t offset, int64_t *list_of_ids)
+{
+    bind_statement(select_latest_entries, ENTRY_BINDING, &num_of_entries, 0,
+                   INT);
+    bind_statement(select_latest_entries, LENGTH_BINDING, &offset, 0, INT);
+
+    int counter = 0;
+    while (execute_statement(select_latest_entries) != SQLITE_DONE)
+    {
+        list_of_ids[counter] = sqlite3_column_int(select_latest_entries, 0);
+        counter++;
+    }
+
+    sqlite3_reset(select_latest_entries);
+    sqlite3_clear_bindings(select_latest_entries);
+
+    return counter;
+}
+
+
+uint32_t database_get_total_entries(sqlite3 *db)
+{
+    int ret = execute_statement(total_entries);
+    if (ret == SQLITE_DONE)
+    {
+        return 0;
+    }
+
+    uint32_t total = sqlite3_column_int(total_entries, 0);
+    sqlite3_reset(total_entries);
+
+    return total;
 }
 
 char *database_get_snippet(sqlite3 *db, int64_t id)
@@ -453,7 +520,7 @@ bool database_get_entry(sqlite3 *db, int64_t id, source_buffer *src)
 
 /* Find $XDG_DATA_HOME/kaprica/history.db or
  * $HOME/.local/share/kaprica/history.db */
-const char *find_database_path()
+char *find_database_path()
 {
     char *data_path = NULL;
     char *data_home = getenv("XDG_DATA_HOME");
@@ -475,7 +542,7 @@ const char *find_database_path()
 }
 
 /* Create a new database if one does not already exist */
-sqlite3 *database_init(const char *filepath)
+sqlite3 *database_init(char *filepath)
 {
     filepath = (filepath != NULL) ? filepath : find_database_path();
 
@@ -487,6 +554,7 @@ sqlite3 *database_init(const char *filepath)
         fprintf(stderr, "Failed to create database: %s\n", sqlite3_errmsg(db));
         exit(EXIT_FAILURE);
     }
+    free(filepath);
 
     prepare_bootstrap_statements(db);
     // execute_statement(pragma_journal_wal);
@@ -508,7 +576,7 @@ sqlite3 *database_init(const char *filepath)
 }
 
 /* Open an existing database */
-sqlite3 *database_open(const char *filepath)
+sqlite3 *database_open(char *filepath)
 {
     filepath = (filepath != NULL) ? filepath : find_database_path();
     if (access(filepath, F_OK) == -1)
@@ -524,6 +592,7 @@ sqlite3 *database_open(const char *filepath)
         fprintf(stderr, "Failed to open database: %s\n", sqlite3_errmsg(db));
         exit(EXIT_FAILURE);
     }
+    free(filepath);
 
     prepare_bootstrap_statements(db);
 
@@ -534,24 +603,6 @@ sqlite3 *database_open(const char *filepath)
     prepare_all_statements(db);
 
     return db;
-}
-
-uint32_t database_delete_duplicate_entries(sqlite3 *db)
-{
-    execute_statement(delete_duplicate_entries);
-    sqlite3_reset(delete_duplicate_entries);
-
-    return sqlite3_changes(db);
-}
-
-uint32_t database_delete_old_entries(sqlite3 *db, uint32_t days)
-{
-    bind_statement(delete_old_entries, DATE_BINDING, &days, 0, INT);
-    execute_statement(delete_old_entries);
-    sqlite3_reset(delete_old_entries);
-    sqlite3_clear_bindings(delete_old_entries);
-
-    return sqlite3_changes(db);
 }
 
 void database_destroy(sqlite3 *db)
@@ -572,6 +623,7 @@ void database_destroy(sqlite3 *db)
     sqlite3_finalize(total_entries);
     sqlite3_finalize(select_thumbnail);
     sqlite3_finalize(delete_duplicate_entries);
+    sqlite3_finalize(delete_last_entries);
     sqlite3_finalize(create_data_index);
     sqlite3_finalize(create_mime_index);
     sqlite3_finalize(create_snippet_index);

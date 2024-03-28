@@ -24,8 +24,11 @@ enum
     SIGNAL_EVENT = 1,
     TIMER_EVENT = 2,
     ONE_MINUTE_IN_SECONDS = 60,
-    FIVE_MINUTES_IN_SECONDS = 300
-};
+    FIVE_MINUTES_IN_SECONDS = 300,
+    THIRTY_DAYS = 30,
+    TEN_ENTRIES = 10,
+    TEN_THOUSAND_ENTRIES = 10000,
+} defaults;
 
 struct config
 {
@@ -40,9 +43,10 @@ struct config
 static struct config options = {.seat = NULL,
                                 .database = NULL,
                                 .config = NULL,
-                                .size = 0,
-                                .expire = 30,
-                                .limit = 0};
+                                /* Defaults to 2GB, Can't be stored in a enum due to overflow */
+                                .size = 2147483648,
+                                .expire = THIRTY_DAYS,
+                                .limit = TEN_THOUSAND_ENTRIES};
 
 static const char help[] =
     "Usage: kapd [options]\n"
@@ -70,6 +74,31 @@ static const struct option arguments[] = {
     {"config", required_argument, NULL, 'c'},
     {0, 0, 0, 0}};
 
+static uint64_t parse_size(const char *size)
+{
+    uint64_t multiplier = 1;
+    uint64_t value = strtoull(size, NULL, 10);
+    if (strstr(size, "KB"))
+    {
+        multiplier = 1024;
+    }
+    else if (strstr(size, "MB"))
+    {
+        multiplier = 1024 * 1024;
+    }
+    else if (strstr(size, "GB"))
+    {
+        multiplier = 1024 * 1024 * 1024;
+    }
+    else
+    {
+        fprintf(stderr, "Invalid size format: %s\n", size);
+        exit(EXIT_FAILURE);
+    }
+
+    return value * multiplier;
+}
+
 static void parse_options(int argc, char *argv[])
 {
     int c;
@@ -94,7 +123,7 @@ static void parse_options(int argc, char *argv[])
             options.config = xstrdup(optarg);
             break;
         case 'S':
-            options.size = strtoull(optarg, NULL, 10);
+            options.size = parse_size(optarg);
             break;
         case 'e':
             options.expire = strtoull(optarg, NULL, 10);
@@ -170,6 +199,7 @@ int main(int argc, char *argv[])
         if (selection_set)
         {
             database_insert_entry(db, clip->selection_source);
+            num_of_entries++;
             break;
         }
 
@@ -199,6 +229,7 @@ int main(int argc, char *argv[])
             if (clip_get_selection(clip))
             {
                 database_insert_entry(db, clip->selection_source);
+                num_of_entries++;
                 clip->serving = false;
             }
             else
@@ -240,6 +271,24 @@ int main(int argc, char *argv[])
             if (entries_removed)
             {
                 printf("Removed %d duplicate entries\n", entries_removed);
+            }
+            if (options.limit > num_of_entries)
+            {
+                entries_removed = database_delete_last_entries(db, num_of_entries - options.limit);
+                if (entries_removed)
+                {
+                    printf("Removed %d entries over the limit\n", entries_removed);
+                }
+            }
+
+            entries_removed = 0;
+            while (database_get_size(db) > options.size)
+            {
+                entries_removed += database_delete_largest_entries(db, TEN_ENTRIES);
+            }
+            if (entries_removed)
+            {
+                printf("Removed %d entries to fit the size limit\n", entries_removed);
             }
         }
 
