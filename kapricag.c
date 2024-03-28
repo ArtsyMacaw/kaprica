@@ -354,7 +354,7 @@ static void activate(GtkApplication *app, gpointer user_data)
                                 WINDOW_HEIGHT);
     widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
-    widgets->db = database_open();
+    widgets->db = database_open(NULL);
     if (!widgets->db)
     {
         fprintf(stderr, "Could not locate history database.\n");

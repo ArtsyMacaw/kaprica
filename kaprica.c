@@ -36,8 +36,9 @@ struct config
     bool list;
     bool id;
     char accept;
+    char *db_path;
     bool snippets;
-    bool search_by_type;
+    enum search_type search_type;
     char *seat;
     char *type;
     int64_t limit;
@@ -50,8 +51,9 @@ static struct config options = {.foreground = false,
                                 .list = false,
                                 .id = false,
                                 .accept = 'n',
+                                .db_path = NULL,
                                 .snippets = false,
-                                .search_by_type = false,
+                                .search_type = CONTENT,
                                 .clear = false,
                                 .paste_once = false,
                                 .limit = -1,
@@ -82,6 +84,7 @@ static const struct option copy[] = {{"help", no_argument, NULL, 'h'},
                                      {"id", no_argument, NULL, 'i'},
                                      {"type", required_argument, NULL, 't'},
                                      {"seat", required_argument, NULL, 's'},
+                                      {"database", required_argument, NULL, 'D'},
                                      {0, 0, 0, 0}};
 
 static const char copy_help[] =
@@ -90,15 +93,16 @@ static const char copy_help[] =
     "    kapc copy [options] < ./file-to-copy\n"
     "\n"
     "Options:\n"
-    "    -h, --help            Show this help message\n"
-    "    -v, --version         Show version number\n"
-    "    -f, --foreground      Stay in foreground instead of forking\n"
-    "    -n, --trim-newline    Do not copy the trailing newline\n"
-    "    -i, --id              Copy given id to clipboard\n"
-    "    -o, --paste-once      Only serve one paste request and then exit\n"
-    "    -c, --clear           Instead of copying, clear the clipboard\n"
-    "    -s, --seat <seat>     Pick the seat to use\n"
-    "    -t, --type <type>     Manually specify MIME type to offer\n";
+    "    -h, --help             Show this help message\n"
+    "    -v, --version          Show version number\n"
+    "    -f, --foreground       Stay in foreground instead of forking\n"
+    "    -n, --trim-newline     Do not copy the trailing newline\n"
+    "    -i, --id               Copy given id to clipboard\n"
+    "    -o, --paste-once       Only serve one paste request and then exit\n"
+    "    -c, --clear            Instead of copying, clear the clipboard\n"
+    "    -s, --seat <seat>      Pick the seat to use\n"
+    "    -t, --type <type>      Manually specify MIME type to offer\n"
+    "    -D, --database </path> Specify the path to the database\n";
 
 static const struct option paste[] = {{"help", no_argument, NULL, 'h'},
                                       {"list-types", no_argument, NULL, 'l'},
@@ -107,19 +111,21 @@ static const struct option paste[] = {{"help", no_argument, NULL, 'h'},
                                       {"no-newline", no_argument, NULL, 'n'},
                                       {"type", required_argument, NULL, 't'},
                                       {"seat", required_argument, NULL, 's'},
+                                      {"database", required_argument, NULL, 'D'},
                                       {0, 0, 0, 0}};
 
 static const char paste_help[] =
     "Usage: kapc paste [options]\n"
     "\n"
     "Options:\n"
-    "    -h, --help            Show this help message\n"
-    "    -v, --version         Show version number\n"
-    "    -l, --list-types      Instead of pasting, list the offered types\n"
-    "    -n, --no-newline      Do not add a newline character\n"
-    "    -i, --id              Paste one or more id's from history\n"
-    "    -s, --seat <seat>     Pick the seat to use\n"
-    "    -t, --type <type>     Manually specify MIME type to paste\n";
+    "    -h, --help             Show this help message\n"
+    "    -v, --version          Show version number\n"
+    "    -l, --list-types       Instead of pasting, list the offered types\n"
+    "    -n, --no-newline       Do not add a newline character\n"
+    "    -i, --id               Paste one or more id's from history\n"
+    "    -s, --seat <seat>      Pick the seat to use\n"
+    "    -t, --type <type>      Manually specify MIME type to paste\n"
+    "    -D, --database </path> Specify the path to the database\n";
 
 static const struct option search[] = {{"help", no_argument, NULL, 'h'},
                                        {"version", no_argument, NULL, 'v'},
@@ -128,20 +134,22 @@ static const struct option search[] = {{"help", no_argument, NULL, 'h'},
                                        {"snippet", no_argument, NULL, 's'},
                                        {"list", no_argument, NULL, 'L'},
                                        {"type", no_argument, NULL, 't'},
+                                       {"database", required_argument, NULL, 'D'},
                                        {0, 0, 0, 0}};
 
 static const char search_help[] =
     "Usage: kapc search [options]\n"
     "\n"
     "Options:\n"
-    "    -h, --help            Show this help message\n"
-    "    -v, --version         Show version number\n"
-    "    -l, --limit <max>     Limit the number of entries returned from the "
+    "    -h, --help             Show this help message\n"
+    "    -v, --version          Show version number\n"
+    "    -l, --limit <max>      Limit the number of entries returned from the "
     "search\n"
-    "    -i, --id              Show only the ids of the entries found\n"
-    "    -s, --snippet         Show only the snippets of the entries found\n"
-    "    -t, --type            Search by MIME type\n"
-    "    -L, --list            Output in machine-readable format\n";
+    "    -i, --id               Show only the ids of the entries found\n"
+    "    -s, --snippet          Show only the snippets of the entries found\n"
+    "    -t, --type             Search by MIME type\n"
+    "    -L, --list             Output in machine-readable format\n"
+    "    -D, --database </path> Specify the path to the database\n";
 
 static const struct option delete[] = {{"help", no_argument, NULL, 'h'},
                                        {"version", no_argument, NULL, 'v'},
@@ -149,19 +157,21 @@ static const struct option delete[] = {{"help", no_argument, NULL, 'h'},
                                        {"id", no_argument, NULL, 'i'},
                                        {"type", no_argument, NULL, 't'},
                                        {"accept", no_argument, NULL, 'a'},
+                                       {"database", required_argument, NULL, 'D'},
                                        {0, 0, 0, 0}};
 
 static const char delete_help[] =
     "Usage: kapc delete [options] <text to delete>\n"
     "\n"
     "Options:\n"
-    "    -h, --help            Show this help message\n"
-    "    -v, --version         Show version number\n"
-    "    -l, --limit <max>     Limit the number of entries deleted\n"
-    "    -a, --accept          Don't ask for confirmation when deleting "
+    "    -h, --help             Show this help message\n"
+    "    -v, --version          Show version number\n"
+    "    -l, --limit <max>      Limit the number of entries deleted\n"
+    "    -a, --accept           Don't ask for confirmation when deleting "
     "entries\n"
-    "    -t, --type            Delete by MIME type\n"
-    "    -i, --id              Delete one or more id's from history\n";
+    "    -t, --type             Delete by MIME type\n"
+    "    -i, --id               Delete one or more id's from history\n"
+    "    -D, --database </path> Specify the path to the database\n";
 
 static void parse_options(int argc, char *argv[])
 {
@@ -177,25 +187,25 @@ static void parse_options(int argc, char *argv[])
     if (!strcmp(argv[1], "copy"))
     {
         action = (void *)copy;
-        opt_string = "hfnt:s:covi";
+        opt_string = "hfnt:s:coviD:";
         options.action = COPY;
     }
     else if (!strcmp(argv[1], "paste"))
     {
         action = (void *)paste;
-        opt_string = "hlt:s:nvi";
+        opt_string = "hlt:s:nviD:";
         options.action = PASTE;
     }
     else if (!strcmp(argv[1], "search"))
     {
         action = (void *)search;
-        opt_string = "hvl:itLs";
+        opt_string = "hvl:itLsD:";
         options.action = SEARCH;
     }
     else if (!strcmp(argv[1], "delete"))
     {
         action = (void *)delete;
-        opt_string = "hvl:ita";
+        opt_string = "hvl:itaD:";
         options.action = DELETE;
     }
     else if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))
@@ -268,6 +278,9 @@ static void parse_options(int argc, char *argv[])
         case 'a':
             options.accept = 'a';
             break;
+        case 'D':
+            options.db_path = xstrdup(optarg);
+            break;
         case 'n':
             options.newline = true;
             break;
@@ -283,7 +296,7 @@ static void parse_options(int argc, char *argv[])
         case 't':
             if (options.action == SEARCH)
             {
-                options.search_by_type = true;
+                options.search_type = MIME_TYPE;
             }
             else if (!optarg)
             {
@@ -525,7 +538,7 @@ int main(int argc, char *argv[])
         }
         else if (options.id)
         {
-            db = database_init();
+            db = database_open(options.db_path);
             uint32_t num_of_ids = 0;
             ids = get_ids(num_of_args, args, &num_of_ids);
             if (num_of_ids != 1)
@@ -591,7 +604,7 @@ int main(int argc, char *argv[])
     {
         if (options.id)
         {
-            db = database_init();
+            db = database_open(options.db_path);
             uint32_t num_of_ids = 0;
             ids = get_ids(num_of_args, args, &num_of_ids);
 
@@ -633,7 +646,7 @@ int main(int argc, char *argv[])
     }
     else if (options.action == SEARCH)
     {
-        db = database_init();
+        db = database_open(options.db_path);
         if (!get_stdin(num_of_args, args, src))
         {
             goto cleanup;
@@ -647,7 +660,7 @@ int main(int argc, char *argv[])
 
         uint32_t found = database_find_matching_entries(
             db, src->data[0], src->len[0], options.limit, ids,
-            options.search_by_type);
+            options.search_type);
 
         for (int i = 0; i < found; i++)
         {
@@ -685,7 +698,7 @@ int main(int argc, char *argv[])
     }
     else if (options.action == DELETE)
     {
-        db = database_init();
+        db = database_open(options.db_path);
         uint32_t found = 0;
         if (options.id)
         {
@@ -704,7 +717,7 @@ int main(int argc, char *argv[])
             ids = xmalloc(sizeof(int64_t) * options.limit);
             found = database_find_matching_entries(db, src->data[0],
                                                    src->len[0], options.limit,
-                                                   ids, options.search_by_type);
+                                                   ids, options.search_type);
         }
 
         char *input = NULL;

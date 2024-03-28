@@ -513,7 +513,8 @@ sqlite3 *database_open(const char *filepath)
     filepath = (filepath != NULL) ? filepath : find_database_path();
     if (access(filepath, F_OK) == -1)
     {
-        return NULL;
+        fprintf(stderr, "Could not find database at %s\n", filepath);
+        exit(EXIT_FAILURE);
     }
 
     sqlite3 *db;
