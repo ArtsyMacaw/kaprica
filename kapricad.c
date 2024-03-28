@@ -13,6 +13,7 @@
 #include <sys/timerfd.h>
 #include <time.h>
 #include <unistd.h>
+#include <getopt.h>
 #include "clipboard.h"
 #include "database.h"
 #include "wlr-data-control.h"
@@ -26,6 +27,88 @@ enum
     FIVE_MINUTES_IN_SECONDS = 300
 };
 
+struct config
+{
+    char *seat;
+    char *database;
+    char *config;
+    uint64_t size;
+    uint64_t expire;
+    uint64_t limit;
+};
+
+static struct config options = {.seat = NULL,
+                                .database = NULL,
+                                .config = NULL,
+                                .size = 0,
+                                .expire = 30,
+                                .limit = 0};
+
+static const char help[] =
+    "Usage: kapd [options]\n"
+    "\n"
+    "Options:\n"
+    "    -h, --help               Show this help message\n"
+    "    -v, --version            Show version number\n"
+    "    -s, --seat <seat>        Specify the seat to use\n"
+    "    -D, --database </path>   Specify the path to the database\n"
+    "    -S, --size <(x)KB/MB/GB> Limit the size of the database\n"
+    "    -e, --expire <x-days>    Set the time before an entry in the database "
+    "is deleted\n"
+    "    -l, --limit <0-x>        Limit the number of entries in the database\n"
+    "    -c, --config </path>     Specify the path to the configuration file\n"
+    "\n";
+
+static const struct option arguments[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"version", no_argument, NULL, 'v'},
+    {"seat", required_argument, NULL, 's'},
+    {"database", required_argument, NULL, 'D'},
+    {"size", required_argument, NULL, 'S'},
+    {"expire", required_argument, NULL, 'e'},
+    {"limit", required_argument, NULL, 'l'},
+    {"config", required_argument, NULL, 'c'},
+    {0, 0, 0, 0}};
+
+static void parse_options(int argc, char *argv[])
+{
+    int c;
+    while ((c = getopt_long(argc, argv, "hvs:D:S:e:l:c:", arguments, NULL)) !=
+           -1)
+    {
+        switch (c)
+        {
+        case 'h':
+            printf("%s", help);
+            exit(EXIT_SUCCESS);
+        case 'v':
+            printf("Kaprica pre-release\n");
+            exit(EXIT_SUCCESS);
+        case 's':
+            options.seat = xstrdup(optarg);
+            break;
+        case 'D':
+            options.database = xstrdup(optarg);
+            break;
+        case 'c':
+            options.config = xstrdup(optarg);
+            break;
+        case 'S':
+            options.size = strtoull(optarg, NULL, 10);
+            break;
+        case 'e':
+            options.expire = strtoull(optarg, NULL, 10);
+            break;
+        case 'l':
+            options.limit = strtoull(optarg, NULL, 10);
+            break;
+        default:
+            fprintf(stderr, "%s", help);
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
 static void prepare_read(struct wl_display *display)
 {
     while (wl_display_prepare_read(display) != 0)
@@ -37,6 +120,8 @@ static void prepare_read(struct wl_display *display)
 
 int main(int argc, char *argv[])
 {
+    parse_options(argc, argv);
+
     clipboard *clip = clip_init();
 
     /* Block SIGINT and SIGTERM to be able to handle them with signalfd */
@@ -69,7 +154,7 @@ int main(int argc, char *argv[])
         {.fd = watch_signals, .events = POLLIN},
         {.fd = clean_up_entries, .events = POLLIN}};
 
-    sqlite3 *db = database_init();
+    sqlite3 *db = database_init(options.database);
 
     clip_watch(clip);
     wl_display_roundtrip(clip->display);
@@ -145,7 +230,7 @@ int main(int argc, char *argv[])
             uint64_t tmp;
             read(clean_up_entries, &tmp, sizeof(uint64_t));
 
-            uint32_t entries_removed = database_delete_old_entries(db, -30);
+            uint32_t entries_removed = database_delete_old_entries(db, options.expire);
             if (entries_removed)
             {
                 printf("Removed %d old entries\n", entries_removed);

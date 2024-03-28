@@ -25,7 +25,8 @@ static sqlite3_stmt *find_matching_entries, *find_matching_types;
 static sqlite3_stmt *select_latest_entries, *select_entry, *select_snippet,
     *select_thumbnail, *total_entries;
 /* Deletion statements */
-static sqlite3_stmt *delete_entry, *delete_old_entries, *delete_duplicate_entries;
+static sqlite3_stmt *delete_entry, *delete_old_entries,
+    *delete_duplicate_entries;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -174,14 +175,13 @@ static void prepare_all_statements(sqlite3 *db)
     const char get_total_entries[] = "SELECT COUNT(*) FROM clipboard_history;";
     prepare_statement(db, get_total_entries, &total_entries);
 
-    const char delete_duplicates[] =
-        "DELETE FROM clipboard_history"
-        "    WHERE history_id NOT IN("
-        "        SELECT MAX(history_id)"
-        "            FROM clipboard_history"
-        "            GROUP BY hash"
-        "        ORDER BY timestamp DESC"
-        "    );";
+    const char delete_duplicates[] = "DELETE FROM clipboard_history"
+                                     "    WHERE history_id NOT IN("
+                                     "        SELECT MAX(history_id)"
+                                     "            FROM clipboard_history"
+                                     "            GROUP BY hash"
+                                     "        ORDER BY timestamp DESC"
+                                     "    );";
     prepare_statement(db, delete_duplicates, &delete_duplicate_entries);
 }
 
@@ -311,18 +311,26 @@ uint32_t database_get_latest_entries(sqlite3 *db, uint32_t num_of_entries,
 }
 
 uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
-                                        uint16_t num_of_entries,
-                                        int64_t *list_of_ids, bool mime_type)
+                                        uint32_t num_of_entries,
+                                        int64_t *list_of_ids,
+                                        enum search_type type)
 {
     sqlite3_stmt *search;
-    if (mime_type)
+
+    if (type == MIME_TYPE)
     {
         search = find_matching_types;
     }
-    else
+    else if (type == CONTENT)
     {
         search = find_matching_entries;
     }
+    else
+    {
+        fprintf(stderr, "Invalid search type\n");
+        exit(EXIT_FAILURE);
+    }
+
     bind_statement(search, MATCH_BINDING, match, length, BLOB);
 
     int counter = 0;
@@ -443,12 +451,37 @@ bool database_get_entry(sqlite3 *db, int64_t id, source_buffer *src)
     return true;
 }
 
-/* Create a new database if one does not already exist */
-sqlite3 *database_init(void)
+/* Find $XDG_DATA_HOME/kaprica/history.db or
+ * $HOME/.local/share/kaprica/history.db */
+const char *find_database_path()
 {
+    char *data_path = NULL;
+    char *data_home = getenv("XDG_DATA_HOME");
+    if (data_home)
+    {
+        data_home = xmalloc(strlen(data_home) + strlen("/kaprica/history.db") + 1);
+        strcpy(data_path, data_home);
+        strcat(data_path, "/kaprica/history.db");
+    }
+    else
+    {
+        data_home = getenv("HOME");
+        data_path = xmalloc(strlen(data_home) + strlen("/.local/share/kaprica/history.db") + 1);
+        strcpy(data_path, data_home);
+        strcat(data_path, "/.local/share/kaprica/history.db");
+    }
+
+    return data_path;
+}
+
+/* Create a new database if one does not already exist */
+sqlite3 *database_init(const char *filepath)
+{
+    filepath = (filepath != NULL) ? filepath : find_database_path();
+
     sqlite3 *db;
     // Put database in a proper location, probably ~/.kaprica/history.db
-    sqlite3_open("/home/haden/.kaprica/history.db", &db);
+    sqlite3_open(filepath, &db);
     if (!db)
     {
         fprintf(stderr, "Failed to create database: %s\n", sqlite3_errmsg(db));
@@ -475,15 +508,16 @@ sqlite3 *database_init(void)
 }
 
 /* Open an existing database */
-sqlite3 *database_open(void)
+sqlite3 *database_open(const char *filepath)
 {
-    if (access("/home/haden/.kaprica/history.db", F_OK) == -1)
+    filepath = (filepath != NULL) ? filepath : find_database_path();
+    if (access(filepath, F_OK) == -1)
     {
         return NULL;
     }
 
     sqlite3 *db;
-    sqlite3_open("/home/haden/.kaprica/history.db", &db);
+    sqlite3_open(filepath, &db);
     if (!db)
     {
         fprintf(stderr, "Failed to open database: %s\n", sqlite3_errmsg(db));
@@ -536,6 +570,7 @@ void database_destroy(sqlite3 *db)
     sqlite3_finalize(delete_entry);
     sqlite3_finalize(total_entries);
     sqlite3_finalize(select_thumbnail);
+    sqlite3_finalize(delete_duplicate_entries);
     sqlite3_finalize(create_data_index);
     sqlite3_finalize(create_mime_index);
     sqlite3_finalize(create_snippet_index);
