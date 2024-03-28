@@ -36,7 +36,7 @@ struct config
     char *database;
     char *config;
     uint64_t size;
-    uint64_t expire;
+    uint32_t expire;
     uint64_t limit;
 };
 
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
             uint64_t tmp;
             read(clean_up_entries, &tmp, sizeof(uint64_t));
 
-            uint32_t entries_removed = database_delete_old_entries(db, options.expire);
+            uint32_t entries_removed = database_delete_old_entries(db, (options.expire * -1));
             if (entries_removed)
             {
                 printf("Removed %d old entries\n", entries_removed);
@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
             {
                 printf("Removed %d duplicate entries\n", entries_removed);
             }
-            if (options.limit > num_of_entries)
+            if (num_of_entries > options.limit)
             {
                 entries_removed = database_delete_last_entries(db, num_of_entries - options.limit);
                 if (entries_removed)

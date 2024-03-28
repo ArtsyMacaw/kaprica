@@ -272,7 +272,7 @@ uint32_t database_delete_duplicate_entries(sqlite3 *db)
     return sqlite3_changes(db);
 }
 
-uint32_t database_delete_old_entries(sqlite3 *db, uint32_t days)
+uint32_t database_delete_old_entries(sqlite3 *db, int32_t days)
 {
     bind_statement(delete_old_entries, DATE_BINDING, &days, 0, INT);
     execute_statement(delete_old_entries);
