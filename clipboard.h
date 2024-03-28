@@ -12,7 +12,7 @@
 #define MAX_DATA_SIZE 52428800
 
 /* Read 64 KiB the capacity of pipes() buffer */
-#define READ_SIZE 65536 // Assumes 4k page size, fix at some point
+#define READ_SIZE 65536 // FIXME: Assumes 4k page size, fix at some point
 #define SNIPPET_SIZE 80
 
 // Turn these all into enums maybe?
@@ -69,19 +69,19 @@ typedef struct
 /* Clipboard functions | clipboard.c */
 clipboard *clip_init(void);
 void clip_destroy(clipboard *clip);
-void clip_watch(clipboard *clip);
-bool clip_get_selection(clipboard *clip);
-void clip_clear_selection(clipboard *clip);
-void clip_set_selection(clipboard *clip);
 
 /* Offer buffer functions | offer.c */
 offer_buffer *offer_init(void);
 void offer_clear(offer_buffer *ofr);
 void offer_destroy(offer_buffer *ofr);
+bool clip_get_selection(clipboard *clip);
+void clip_watch(clipboard *clip);
 
 /* Source buffer functions | source.c */
 source_buffer *source_init(void);
 void source_clear(source_buffer *src);
 void source_destroy(source_buffer *src);
+void clip_clear_selection(clipboard *clip);
+void clip_set_selection(clipboard *clip);
 
 #endif

@@ -18,7 +18,8 @@ bool database_get_entry(sqlite3 *db, int64_t id, source_buffer *src);
 uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
                                         uint16_t num_of_entries,
                                         int64_t *list_of_ids, bool mime_type);
-uint32_t database_destroy_old_entries(sqlite3 *db, uint32_t days);
+uint32_t database_delete_old_entries(sqlite3 *db, uint32_t days);
+uint32_t database_delete_duplicate_entries(sqlite3 *db);
 void database_destroy(sqlite3 *db);
 
 #endif

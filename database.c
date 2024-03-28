@@ -25,7 +25,7 @@ static sqlite3_stmt *find_matching_entries, *find_matching_types;
 static sqlite3_stmt *select_latest_entries, *select_entry, *select_snippet,
     *select_thumbnail, *total_entries;
 /* Deletion statements */
-static sqlite3_stmt *delete_old_entries, *delete_entry;
+static sqlite3_stmt *delete_entry, *delete_old_entries, *delete_duplicate_entries;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -173,6 +173,16 @@ static void prepare_all_statements(sqlite3 *db)
 
     const char get_total_entries[] = "SELECT COUNT(*) FROM clipboard_history;";
     prepare_statement(db, get_total_entries, &total_entries);
+
+    const char delete_duplicates[] =
+        "DELETE FROM clipboard_history"
+        "    WHERE history_id NOT IN("
+        "        SELECT MAX(history_id)"
+        "            FROM clipboard_history"
+        "            GROUP BY hash"
+        "        ORDER BY timestamp DESC"
+        "    );";
+    prepare_statement(db, delete_duplicates, &delete_duplicate_entries);
 }
 
 static int execute_statement(sqlite3_stmt *stmt)
@@ -491,7 +501,15 @@ sqlite3 *database_open(void)
     return db;
 }
 
-uint32_t database_destroy_old_entries(sqlite3 *db, uint32_t days)
+uint32_t database_delete_duplicate_entries(sqlite3 *db)
+{
+    execute_statement(delete_duplicate_entries);
+    sqlite3_reset(delete_duplicate_entries);
+
+    return sqlite3_changes(db);
+}
+
+uint32_t database_delete_old_entries(sqlite3 *db, uint32_t days)
 {
     bind_statement(delete_old_entries, DATE_BINDING, &days, 0, INT);
     execute_statement(delete_old_entries);

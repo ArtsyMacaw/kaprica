@@ -18,10 +18,13 @@
 #include "wlr-data-control.h"
 #include "xmalloc.h"
 
-#define TIMER_EVENT 2
-#define SIGNAL_EVENT 1
-
-static clipboard *clip;
+enum
+{
+    SIGNAL_EVENT = 1,
+    TIMER_EVENT = 2,
+    ONE_MINUTE_IN_SECONDS = 60,
+    FIVE_MINUTES_IN_SECONDS = 300
+};
 
 static void prepare_read(struct wl_display *display)
 {
@@ -34,8 +37,9 @@ static void prepare_read(struct wl_display *display)
 
 int main(int argc, char *argv[])
 {
-    clip = clip_init();
+    clipboard *clip = clip_init();
 
+    /* Block SIGINT and SIGTERM to be able to handle them with signalfd */
     sigset_t mask;
     sigemptyset(&mask);
     sigaddset(&mask, SIGINT);
@@ -46,14 +50,20 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    /* Handle SIGINT and SIGTERM manually so we can cleanup */
+    int watch_signals = signalfd(-1, &mask, 0);
+
+    /* Set up timer to periodically clean up the database */
     int clean_up_entries = timerfd_create(CLOCK_MONOTONIC, 0);
-    struct timespec five_minutes = {.tv_sec = 300};
+    struct timespec one_minute = {.tv_sec = ONE_MINUTE_IN_SECONDS};
+    struct timespec five_minutes = {.tv_sec = FIVE_MINUTES_IN_SECONDS};
     struct itimerspec timer = {.it_interval = five_minutes,
-                               .it_value = five_minutes};
+                               .it_value = one_minute};
     timerfd_settime(clean_up_entries, 0, &timer, NULL);
 
-    int watch_signals = signalfd(-1, &mask, 0);
+    /* Get the fd of the display for poll */
     int display_fd = wl_display_get_fd(clip->display);
+
     struct pollfd wait_for_events[] = {
         {.fd = display_fd, .events = POLLIN},
         {.fd = watch_signals, .events = POLLIN},
@@ -95,6 +105,7 @@ int main(int argc, char *argv[])
     {
         prepare_read(clip->display);
 
+        // FIXME: This causes wl_display_read_events() to leak memory
         if ((clip->serving && clip->selection_source->expired) ||
             (!clip->serving && clip->selection_offer->expired))
         {
@@ -133,14 +144,25 @@ int main(int argc, char *argv[])
             /* Read just to clear the buffer */
             uint64_t tmp;
             read(clean_up_entries, &tmp, sizeof(uint64_t));
-            uint16_t entries_removed = database_destroy_old_entries(db, -30);
+
+            uint32_t entries_removed = database_delete_old_entries(db, -30);
             if (entries_removed)
             {
                 printf("Removed %d old entries\n", entries_removed);
             }
+
+            entries_removed = database_delete_duplicate_entries(db);
+            if (entries_removed)
+            {
+                printf("Removed %d duplicate entries\n", entries_removed);
+            }
         }
 
-        wl_display_read_events(clip->display);
+        if (wl_display_read_events(clip->display) == -1)
+        {
+            perror("wl_display_read_events");
+            break;
+        }
     }
 
     /* Cleanup that shouldn't be necessary but helps analyze with valgrind */
