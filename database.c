@@ -197,11 +197,12 @@ static void prepare_all_statements(sqlite3 *db)
                                      "    );";
     prepare_statement(db, remove_duplicates, &delete_duplicate_entries);
 
-    const char remove_large_entries[] = "DELETE FROM clipboard_history"
-                                        "    WHERE history_id IN("
-                                        "        SELECT DISTINCT entry FROM content"
-                                        "            ORDER BY length DESC"
-                                        "            LIMIT ?1);";
+    const char remove_large_entries[] =
+        "DELETE FROM clipboard_history"
+        "    WHERE history_id IN("
+        "        SELECT DISTINCT entry FROM content"
+        "            ORDER BY length DESC"
+        "            LIMIT ?1);";
     prepare_statement(db, remove_large_entries, &delete_large_entries);
 }
 
@@ -294,7 +295,8 @@ uint32_t database_delete_last_entries(sqlite3 *db, uint32_t num_of_entries)
 
 uint32_t database_delete_largest_entries(sqlite3 *db, uint32_t num_of_entries)
 {
-    bind_statement(delete_large_entries, ENTRY_BINDING, &num_of_entries, 0, INT);
+    bind_statement(delete_large_entries, ENTRY_BINDING, &num_of_entries, 0,
+                   INT);
     execute_statement(delete_large_entries);
     sqlite3_reset(delete_large_entries);
     sqlite3_clear_bindings(delete_large_entries);
@@ -415,7 +417,6 @@ uint32_t database_get_latest_entries(sqlite3 *db, uint32_t num_of_entries,
     return counter;
 }
 
-
 uint32_t database_get_total_entries(sqlite3 *db)
 {
     int ret = execute_statement(total_entries);
@@ -526,14 +527,16 @@ char *find_database_path()
     char *data_home = getenv("XDG_DATA_HOME");
     if (data_home)
     {
-        data_home = xmalloc(strlen(data_home) + strlen("/kaprica/history.db") + 1);
+        data_home =
+            xmalloc(strlen(data_home) + strlen("/kaprica/history.db") + 1);
         strcpy(data_path, data_home);
         strcat(data_path, "/kaprica/history.db");
     }
     else
     {
         data_home = getenv("HOME");
-        data_path = xmalloc(strlen(data_home) + strlen("/.local/share/kaprica/history.db") + 1);
+        data_path = xmalloc(strlen(data_home) +
+                            strlen("/.local/share/kaprica/history.db") + 1);
         strcpy(data_path, data_home);
         strcat(data_path, "/.local/share/kaprica/history.db");
     }

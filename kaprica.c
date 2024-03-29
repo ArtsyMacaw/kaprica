@@ -84,7 +84,7 @@ static const struct option copy[] = {{"help", no_argument, NULL, 'h'},
                                      {"id", no_argument, NULL, 'i'},
                                      {"type", required_argument, NULL, 't'},
                                      {"seat", required_argument, NULL, 's'},
-                                      {"database", required_argument, NULL, 'D'},
+                                     {"database", required_argument, NULL, 'D'},
                                      {0, 0, 0, 0}};
 
 static const char copy_help[] =
@@ -104,15 +104,16 @@ static const char copy_help[] =
     "    -t, --type <type>      Manually specify MIME type to offer\n"
     "    -D, --database </path> Specify the path to the database\n";
 
-static const struct option paste[] = {{"help", no_argument, NULL, 'h'},
-                                      {"list-types", no_argument, NULL, 'l'},
-                                      {"version", no_argument, NULL, 'v'},
-                                      {"id", no_argument, NULL, 'i'},
-                                      {"no-newline", no_argument, NULL, 'n'},
-                                      {"type", required_argument, NULL, 't'},
-                                      {"seat", required_argument, NULL, 's'},
-                                      {"database", required_argument, NULL, 'D'},
-                                      {0, 0, 0, 0}};
+static const struct option paste[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"list-types", no_argument, NULL, 'l'},
+    {"version", no_argument, NULL, 'v'},
+    {"id", no_argument, NULL, 'i'},
+    {"no-newline", no_argument, NULL, 'n'},
+    {"type", required_argument, NULL, 't'},
+    {"seat", required_argument, NULL, 's'},
+    {"database", required_argument, NULL, 'D'},
+    {0, 0, 0, 0}};
 
 static const char paste_help[] =
     "Usage: kapc paste [options]\n"
@@ -127,15 +128,16 @@ static const char paste_help[] =
     "    -t, --type <type>      Manually specify MIME type to paste\n"
     "    -D, --database </path> Specify the path to the database\n";
 
-static const struct option search[] = {{"help", no_argument, NULL, 'h'},
-                                       {"version", no_argument, NULL, 'v'},
-                                       {"limit", required_argument, NULL, 'l'},
-                                       {"id", no_argument, NULL, 'i'},
-                                       {"snippet", no_argument, NULL, 's'},
-                                       {"list", no_argument, NULL, 'L'},
-                                       {"type", no_argument, NULL, 't'},
-                                       {"database", required_argument, NULL, 'D'},
-                                       {0, 0, 0, 0}};
+static const struct option search[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"version", no_argument, NULL, 'v'},
+    {"limit", required_argument, NULL, 'l'},
+    {"id", no_argument, NULL, 'i'},
+    {"snippet", no_argument, NULL, 's'},
+    {"list", no_argument, NULL, 'L'},
+    {"type", no_argument, NULL, 't'},
+    {"database", required_argument, NULL, 'D'},
+    {0, 0, 0, 0}};
 
 static const char search_help[] =
     "Usage: kapc search [options]\n"
@@ -151,14 +153,15 @@ static const char search_help[] =
     "    -L, --list             Output in machine-readable format\n"
     "    -D, --database </path> Specify the path to the database\n";
 
-static const struct option delete[] = {{"help", no_argument, NULL, 'h'},
-                                       {"version", no_argument, NULL, 'v'},
-                                       {"limit", required_argument, NULL, 'l'},
-                                       {"id", no_argument, NULL, 'i'},
-                                       {"type", no_argument, NULL, 't'},
-                                       {"accept", no_argument, NULL, 'a'},
-                                       {"database", required_argument, NULL, 'D'},
-                                       {0, 0, 0, 0}};
+static const struct option delete[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"version", no_argument, NULL, 'v'},
+    {"limit", required_argument, NULL, 'l'},
+    {"id", no_argument, NULL, 'i'},
+    {"type", no_argument, NULL, 't'},
+    {"accept", no_argument, NULL, 'a'},
+    {"database", required_argument, NULL, 'D'},
+    {0, 0, 0, 0}};
 
 static const char delete_help[] =
     "Usage: kapc delete [options] <text to delete>\n"
@@ -370,8 +373,7 @@ static bool read_stdin_fd(source_buffer *input)
 }
 
 /* Concatenates argv with spaces in between */
-static bool concatenate_argv(int args, char *argv[],
-                               source_buffer *input)
+static bool concatenate_argv(int args, char *argv[], source_buffer *input)
 {
     input->num_types = 1;
     input->types[0] = NULL;
@@ -425,7 +427,8 @@ static bool get_stdin(int args, char *input[], source_buffer *output)
 }
 
 /* Processes argv[] into an array of integers */
-static int64_t *seperate_argv_into_ids(int args, char *argv[], uint32_t *num_of_ids)
+static int64_t *seperate_argv_into_ids(int args, char *argv[],
+                                       uint32_t *num_of_ids)
 {
     int64_t *ids = xmalloc(sizeof(int64_t) * args);
     int64_t tmp;

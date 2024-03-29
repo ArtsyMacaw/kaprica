@@ -40,13 +40,14 @@ struct config
     uint64_t limit;
 };
 
-static struct config options = {.seat = NULL,
-                                .database = NULL,
-                                .config = NULL,
-                                /* Defaults to 2GB, Can't be stored in a enum due to overflow */
-                                .size = 2147483648,
-                                .expire = THIRTY_DAYS,
-                                .limit = TEN_THOUSAND_ENTRIES};
+static struct config options = {
+    .seat = NULL,
+    .database = NULL,
+    .config = NULL,
+    /* Defaults to 2GB, Can't be stored in a enum due to overflow */
+    .size = 2147483648,
+    .expire = THIRTY_DAYS,
+    .limit = TEN_THOUSAND_ENTRIES};
 
 static const char help[] =
     "Usage: kapd [options]\n"
@@ -261,7 +262,8 @@ int main(int argc, char *argv[])
             uint64_t tmp;
             read(clean_up_entries, &tmp, sizeof(uint64_t));
 
-            uint32_t entries_removed = database_delete_old_entries(db, (options.expire * -1));
+            uint32_t entries_removed =
+                database_delete_old_entries(db, (options.expire * -1));
             if (entries_removed)
             {
                 printf("Removed %d old entries\n", entries_removed);
@@ -278,20 +280,24 @@ int main(int argc, char *argv[])
             entries_removed = 0;
             while (database_get_size(db) > options.size)
             {
-                entries_removed += database_delete_largest_entries(db, TEN_ENTRIES);
+                entries_removed +=
+                    database_delete_largest_entries(db, TEN_ENTRIES);
             }
             if (entries_removed)
             {
-                printf("Removed %d entries to fit the size limit\n", entries_removed);
+                printf("Removed %d entries to fit the size limit\n",
+                       entries_removed);
                 num_of_entries -= entries_removed;
             }
 
             if (num_of_entries > options.limit)
             {
-                entries_removed = database_delete_last_entries(db, num_of_entries - options.limit);
+                entries_removed = database_delete_last_entries(
+                    db, num_of_entries - options.limit);
                 if (entries_removed)
                 {
-                    printf("Removed %d entries over the limit\n", entries_removed);
+                    printf("Removed %d entries over the limit\n",
+                           entries_removed);
                 }
             }
         }

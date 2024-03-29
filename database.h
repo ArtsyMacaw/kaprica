@@ -9,7 +9,7 @@ enum search_type
 {
     CONTENT,
     MIME_TYPE,
-    GLOB, //TODO
+    GLOB,     // TODO
     TIMESTAMP // TODO
 };
 
