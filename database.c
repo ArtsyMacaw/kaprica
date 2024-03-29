@@ -527,7 +527,7 @@ char *find_database_path()
     char *data_home = getenv("XDG_DATA_HOME");
     if (data_home)
     {
-        data_home =
+        data_path =
             xmalloc(strlen(data_home) + strlen("/kaprica/history.db") + 1);
         strcpy(data_path, data_home);
         strcat(data_path, "/kaprica/history.db");
