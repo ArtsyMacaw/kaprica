@@ -265,20 +265,14 @@ int main(int argc, char *argv[])
             if (entries_removed)
             {
                 printf("Removed %d old entries\n", entries_removed);
+                num_of_entries -= entries_removed;
             }
 
             entries_removed = database_delete_duplicate_entries(db);
             if (entries_removed)
             {
                 printf("Removed %d duplicate entries\n", entries_removed);
-            }
-            if (num_of_entries > options.limit)
-            {
-                entries_removed = database_delete_last_entries(db, num_of_entries - options.limit);
-                if (entries_removed)
-                {
-                    printf("Removed %d entries over the limit\n", entries_removed);
-                }
+                num_of_entries -= entries_removed;
             }
 
             entries_removed = 0;
@@ -289,6 +283,16 @@ int main(int argc, char *argv[])
             if (entries_removed)
             {
                 printf("Removed %d entries to fit the size limit\n", entries_removed);
+                num_of_entries -= entries_removed;
+            }
+
+            if (num_of_entries > options.limit)
+            {
+                entries_removed = database_delete_last_entries(db, num_of_entries - options.limit);
+                if (entries_removed)
+                {
+                    printf("Removed %d entries over the limit\n", entries_removed);
+                }
             }
         }
 
