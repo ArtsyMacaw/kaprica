@@ -286,6 +286,7 @@ void get_thumbnail(source_buffer *src)
     memcpy(src->thumbnail, blob, length);
     src->thumbnail_len = length;
 
+    free(blob);
     DestroyMagickWand(wand);
     MagickWandTerminus();
 }
