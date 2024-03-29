@@ -746,7 +746,7 @@ int main(int argc, char *argv[])
 cleanup:
     if (db)
     {
-        database_destroy(db);
+        database_close(db);
     }
     if (ids)
     {

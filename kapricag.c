@@ -74,7 +74,7 @@ static void clicked(GtkWidget *button, gpointer user_data)
     struct id_data *data = user_data;
     int64_t t = GPOINTER_TO_UINT(data->id);
     database_get_entry(data->widgets->db, t, clip->selection_source);
-    database_destroy(data->widgets->db);
+    database_close(data->widgets->db);
     clip_set_selection(clip);
 
     pid_t pid = fork();

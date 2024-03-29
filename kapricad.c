@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
     }
 
     /* Cleanup that shouldn't be necessary but helps analyze with valgrind */
-    database_destroy(db);
+    database_close(db);
     close(display_fd);
     close(watch_signals);
     close(clean_up_entries);

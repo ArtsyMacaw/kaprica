@@ -16,7 +16,7 @@ enum search_type
 sqlite3 *database_init(char *filepath);
 /* Exits the program if the database cannot be found */
 sqlite3 *database_open(char *filepath);
-void database_destroy(sqlite3 *db);
+void database_close(sqlite3 *db);
 uint64_t database_get_size(sqlite3 *db);
 
 void database_insert_entry(sqlite3 *db, source_buffer *src);

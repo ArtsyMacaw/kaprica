@@ -605,7 +605,7 @@ sqlite3 *database_open(char *filepath)
     return db;
 }
 
-void database_destroy(sqlite3 *db)
+void database_close(sqlite3 *db)
 {
     sqlite3_finalize(select_latest_entries);
     sqlite3_finalize(select_entry);
