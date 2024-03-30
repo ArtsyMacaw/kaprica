@@ -14,6 +14,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <ini.h>
 #include "clipboard.h"
 #include "database.h"
 #include "wlr-data-control.h"
@@ -139,6 +140,90 @@ static void parse_options(int argc, char *argv[])
     }
 }
 
+/* Check $HOME/.config/kaprica/config, /etc/kaprica/config, and $XDG_CONFIG_HOME/kaprica/config
+ * for the configuration file */
+static char *find_config_file()
+{
+    if (options.config)
+    {
+        return options.config;
+    }
+
+    char *config_home = getenv("XDG_CONFIG_HOME");
+    char *config_path = NULL;
+    if (config_home)
+    {
+        config_path = xmalloc(strlen(config_home) + strlen("/kaprica/config") + 1);
+        strcpy(config_path, config_home);
+        strcat(config_path, "/kaprica/config");
+    }
+    else
+    {
+        char *home = getenv("HOME");
+        config_path = xmalloc(strlen(home) + strlen("/.config/kaprica/config") + 1);
+        strcpy(config_path, home);
+        strcat(config_path, "/.config/kaprica/config");
+    }
+    if (access(config_path, F_OK) != -1)
+    {
+        return config_path;
+    }
+
+    if (access("/etc/kaprica/config", F_OK) != -1)
+    {
+        return xstrdup("/etc/kaprica/config");
+    }
+
+    return NULL;
+}
+
+static void config_handler(void *user, const char *section, const char *name,
+                          const char *value)
+{
+    /* Always check if the option has already been set from the command line
+     * so that it doesn't get overwritten */
+    if (strcmp(name, "seat") == 0)
+    {
+        if (options.seat == NULL)
+        {
+            options.seat = xstrdup(value);
+        }
+    }
+    else if (strcmp(name, "database") == 0)
+    {
+        if (options.database == NULL)
+        {
+            options.database = xstrdup(value);
+        }
+    }
+    else if (strcmp(name, "size") == 0)
+    {
+        if (options.size == 2147483648)
+        {
+            options.size = parse_size(value);
+        }
+    }
+    else if (strcmp(name, "expire") == 0)
+    {
+        if (options.expire == THIRTY_DAYS)
+        {
+            options.expire = strtoull(value, NULL, 10);
+        }
+    }
+    else if (strcmp(name, "limit") == 0)
+    {
+        if (options.limit == TEN_THOUSAND_ENTRIES)
+        {
+            options.limit = strtoull(value, NULL, 10);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "Invalid option: %s\n", name);
+        exit(EXIT_FAILURE);
+    }
+}
+
 static void prepare_read(struct wl_display *display)
 {
     while (wl_display_prepare_read(display) != 0)
@@ -151,6 +236,13 @@ static void prepare_read(struct wl_display *display)
 int main(int argc, char *argv[])
 {
     parse_options(argc, argv);
+
+    char *config_file = find_config_file();
+    if (config_file)
+    {
+        ini_parse(config_file, (ini_handler) config_handler, NULL);
+        free(config_file);
+    }
 
     clipboard *clip = clip_init();
 
