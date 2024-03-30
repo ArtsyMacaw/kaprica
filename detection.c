@@ -276,7 +276,11 @@ void get_thumbnail(source_buffer *src)
     status = MagickReadImageBlob(wand, src->data[type], src->len[type]);
     if (status == MagickFalse)
     {
-        perror("Failed to read image");
+        ExceptionType severity;
+        char *error = MagickGetException(wand, &severity);
+        fprintf(stderr, "Error reading image blob: %s\n", error);
+        fprintf(stderr, "Image type: %s\n", src->types[type]);
+        MagickRelinquishMemory(error);
         DestroyMagickWand(wand);
         MagickWandTerminus();
         return;
