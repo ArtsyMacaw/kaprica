@@ -367,7 +367,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
     /* Setup global ESC shortcut to close the window */
-    GtkShortcutTrigger *trigger = gtk_keyval_trigger_new(GDK_KEY_Escape, GDK_NO_MODIFIER_MASK);
+    GtkShortcutTrigger *trigger = gtk_keyval_trigger_new(GDK_KEY_Escape, GDK_ALT_MASK);
     GtkShortcutAction *action = gtk_callback_action_new((GtkShortcutFunc) gtk_window_destroy, widgets->window, NULL);
     GtkShortcut *shortcut = gtk_shortcut_new(trigger, action);
     GtkEventController *controller = gtk_shortcut_controller_new();
