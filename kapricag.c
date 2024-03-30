@@ -91,6 +91,14 @@ static void clicked(GtkWidget *button, gpointer user_data)
     }
 }
 
+static void row_activated(GtkListBox *box, GtkListBoxRow *row, gpointer user_data)
+{
+    GtkWidget *button_box = gtk_list_box_row_get_child(row);
+    GtkWidget *button = gtk_widget_get_first_child(button_box);
+
+    g_signal_emit_by_name(button, "clicked");
+}
+
 static void delete_entry(GtkWidget *button, gpointer user_data)
 {
     struct id_data *data = user_data;
@@ -198,6 +206,10 @@ static GtkWidget *create_button(int64_t id, struct Widgets *widgets)
     GtkWidget *button_box = create_button_box();
     GtkWidget *button = create_entry_button(id, widgets);
     GtkWidget *delete = create_delete_button(id, widgets);
+
+    gtk_widget_set_can_focus(delete, FALSE);
+    gtk_widget_set_can_focus(button, FALSE);
+    gtk_widget_set_can_focus(button_box, FALSE);
 
     gtk_box_prepend(GTK_BOX(button_box), button);
     gtk_box_append(GTK_BOX(button_box), delete);
@@ -354,13 +366,22 @@ static void activate(GtkApplication *app, gpointer user_data)
                                 WINDOW_HEIGHT);
     widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
+    /* Setup global ESC shortcut to close the window */
+    GtkShortcutTrigger *trigger = gtk_keyval_trigger_new(GDK_KEY_Escape, GDK_NO_MODIFIER_MASK);
+    GtkShortcutAction *action = gtk_callback_action_new((GtkShortcutFunc) gtk_window_destroy, widgets->window, NULL);
+    GtkShortcut *shortcut = gtk_shortcut_new(trigger, action);
+    GtkEventController *controller = gtk_shortcut_controller_new();
+    gtk_shortcut_controller_set_scope(GTK_SHORTCUT_CONTROLLER(controller), GTK_SHORTCUT_SCOPE_GLOBAL);
+    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller), shortcut);
+    gtk_widget_add_controller(widgets->window, controller);
+
+    /* Open a connection to the database */
     widgets->db = database_open(NULL);
     if (!widgets->db)
     {
         fprintf(stderr, "Could not locate history database.\n");
         exit(EXIT_FAILURE);
     }
-
     uint32_t total_sources = database_get_total_entries(widgets->db),
              offset = 0;
     int64_t *ids = xmalloc(sizeof(int64_t) * total_sources);
@@ -369,7 +390,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     found = found > NUMBER_OF_SOURCES ? NUMBER_OF_SOURCES : found;
     offset += found;
 
-    /* Setup entries */
+    /* Setup list of all entries in the database */
     widgets->scrolled_window_entry = gtk_scrolled_window_new();
     widgets->entry_list = gtk_list_box_new();
     widgets->no_entry = gtk_label_new("No entries yet...");
@@ -394,6 +415,8 @@ static void activate(GtkApplication *app, gpointer user_data)
         GTK_POLICY_AUTOMATIC);
     g_signal_connect(widgets->scrolled_window_entry, "edge-reached",
                      G_CALLBACK(load_more_entries), load);
+    g_signal_connect(widgets->entry_list, "row-activated",
+                     G_CALLBACK(row_activated), NULL);
 
     for (int i = 0; i < found; i++)
     {
@@ -442,6 +465,8 @@ static void activate(GtkApplication *app, gpointer user_data)
                      G_CALLBACK(search_database), search);
     g_signal_connect(widgets->scrolled_window_search, "edge-reached",
                      G_CALLBACK(load_more_entries), load_search);
+    g_signal_connect(widgets->search_list, "row-activated",
+                     G_CALLBACK(row_activated), NULL);
 
     /* Setup clear all */
     widgets->clear_all = gtk_button_new_with_label("Clear All");
@@ -494,12 +519,15 @@ static void activate(GtkApplication *app, gpointer user_data)
 
     /* Pack the main box */
     gtk_box_prepend(GTK_BOX(widgets->back_list), widgets->search_bar);
+
+    /* Only one of these will be visible at a time */
     gtk_box_append(GTK_BOX(widgets->back_list),
                    widgets->scrolled_window_search);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->scrolled_window_entry);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->no_entry);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->no_match);
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->confirm_vbox);
+
     gtk_box_append(GTK_BOX(widgets->back_list), widgets->clear_all);
 
     gtk_widget_set_visible(widgets->no_match, FALSE);
