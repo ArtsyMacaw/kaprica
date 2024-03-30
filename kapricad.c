@@ -168,6 +168,7 @@ static char *find_config_file()
     {
         return config_path;
     }
+    free(config_path);
 
     if (access("/etc/kaprica/config", F_OK) != -1)
     {
