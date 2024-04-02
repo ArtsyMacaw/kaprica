@@ -5,23 +5,20 @@
 #ifndef CLIPBOARD_H
 #define CLIPBOARD_H
 
-/* No source should be offering more than 25 types hopefully */
-#define MAX_MIME_TYPES 25
-
-/* We accept max 50MB of data */
-#define MAX_DATA_SIZE 52428800
-
-/* Read 64 KiB the capacity of pipes() buffer */
-#define READ_SIZE 65536 // FIXME: Assumes 4k page size, fix at some point
-#define SNIPPET_SIZE 80
-
-// Turn these all into enums maybe?
+enum default_sizes
+{
+    MAX_MIME_TYPES = 25,
+    SNIPPET_SIZE = 80,
+    /* Read 64 KiB the capacity of pipes() buffer */
+    READ_SIZE = 65536,       // FIXME: Assumes 4k page size, fix at some point
+    MAX_DATA_SIZE = 52428800 /* 50MB */
+};
 
 typedef enum
 {
     UNSET_BUFFER,
     SELECTION,
-    PRIMARY // Not implemented yet
+    PRIMARY // TODO
 } clipboard_buffer;
 
 /* Buffer not managed by kaprica */
