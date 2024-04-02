@@ -35,6 +35,7 @@ struct config
     bool paste_once;
     bool list;
     bool id;
+    bool reverse_search;
     char accept;
     char *db_path;
     bool snippets;
@@ -50,6 +51,7 @@ static struct config options = {.foreground = false,
                                 .newline = false,
                                 .list = false,
                                 .id = false,
+                                .reverse_search = false,
                                 .accept = 'n',
                                 .db_path = NULL,
                                 .snippets = false,
@@ -84,6 +86,7 @@ static const struct option copy[] = {{"help", no_argument, NULL, 'h'},
                                      {"id", no_argument, NULL, 'i'},
                                      {"type", required_argument, NULL, 't'},
                                      {"seat", required_argument, NULL, 's'},
+                                     {"reverse-search", no_argument, NULL, 'r'},
                                      {"database", required_argument, NULL, 'D'},
                                      {0, 0, 0, 0}};
 
@@ -98,6 +101,8 @@ static const char copy_help[] =
     "    -f, --foreground       Stay in foreground instead of forking\n"
     "    -n, --trim-newline     Do not copy the trailing newline\n"
     "    -i, --id               Copy given id to clipboard\n"
+    "    -r, --reverse-search   Looks for a given snippet and copies the entry "
+    "from the database\n"
     "    -o, --paste-once       Only serve one paste request and then exit\n"
     "    -c, --clear            Instead of copying, clear the clipboard\n"
     "    -s, --seat <seat>      Pick the seat to use\n"
@@ -190,7 +195,7 @@ static void parse_options(int argc, char *argv[])
     if (!strcmp(argv[1], "copy"))
     {
         action = (void *)copy;
-        opt_string = "hfnt:s:coviD:";
+        opt_string = "hfnt:s:coviD:r";
         options.action = COPY;
     }
     else if (!strcmp(argv[1], "paste"))
@@ -227,14 +232,13 @@ static void parse_options(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    int c;
     while (true)
     {
         /* Since we handle argv[1] ourselves, pass a modified argc & argv
          * to 'hide' it from getopt */
         int option_index = 0;
-        c = getopt_long((argc - 1), (argv + 1), opt_string,
-                        (struct option *)action, &option_index);
+        int c = getopt_long((argc - 1), (argv + 1), opt_string,
+                            (struct option *)action, &option_index);
 
         if (c == -1)
         {
@@ -277,6 +281,9 @@ static void parse_options(int argc, char *argv[])
             break;
         case 'i':
             options.id = true;
+            break;
+        case 'r':
+            options.reverse_search = true;
             break;
         case 'a':
             options.accept = 'a';
@@ -551,7 +558,7 @@ int main(int argc, char *argv[])
             }
             if (!database_get_entry(db, ids[0], src))
             {
-                printf("ID: %lu not found\n", ids[0]);
+                printf("ID: %ld not found\n", ids[0]);
                 goto cleanup;
             }
         }
@@ -563,9 +570,26 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (options.newline)
+        /* If were passed a snippet from `kapc search` it will add a newline so
+         * it needs to be trimmed */
+        if (options.newline || options.reverse_search)
         {
             src->len[0] = trim_newline(src->data[0], src->len[0]);
+        }
+        if (options.reverse_search)
+        {
+            db = database_open(options.db_path);
+            int64_t id =
+                database_find_entry_from_snippet(db, src->data[0], src->len[0]);
+
+            if (id == 0)
+            {
+                fprintf(stderr, "Snippet not found\n");
+                goto cleanup;
+            }
+
+            source_clear(src);
+            database_get_entry(db, id, src);
         }
         if (options.paste_once)
         {
@@ -573,6 +597,10 @@ int main(int argc, char *argv[])
         }
 
         if (options.id)
+        {
+            /* Empty */
+        }
+        else if (options.reverse_search)
         {
             /* Empty */
         }
@@ -620,7 +648,7 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    fprintf(stderr, "ID: %lu not found\n", ids[i]);
+                    fprintf(stderr, "ID: %ld not found\n", ids[i]);
                 }
             }
             goto cleanup;
@@ -676,7 +704,7 @@ int main(int argc, char *argv[])
                 {
                     printf("ID: ");
                 }
-                printf("%lu", ids[i]);
+                printf("%ld", ids[i]);
             }
             if (!options.id && !options.snippets)
             {

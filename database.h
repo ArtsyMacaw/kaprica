@@ -32,6 +32,8 @@ uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
                                         uint32_t num_of_entries,
                                         int64_t *list_of_ids,
                                         enum search_type type);
+int64_t database_find_entry_from_snippet(sqlite3 *db, char *snippet,
+                                         size_t length);
 
 void database_delete_entry(sqlite3 *db, int64_t id);
 // TODO: void database_delete_all_entries(sqlite3 *db);
