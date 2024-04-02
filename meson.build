@@ -24,10 +24,10 @@ sql = dependency('sqlite3', version: '>=3.6.19')
 wayland = dependency('wayland-client')
 gtk = dependency('gtk4')
 imagemagick = dependency('MagickWand')
+inih = dependency('inih')
 wayland_scanner = find_program('wayland-scanner')
 magic = cc.find_library('magic')
 xxhash = cc.find_library('xxhash')
-inih = cc.find_library('inih')
 
 wlr_prot = 'protocol/wlr-data-control-unstable-v1.xml'
 wlr_data = 'wlr-data-control'
