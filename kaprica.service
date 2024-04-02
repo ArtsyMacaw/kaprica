@@ -1,0 +1,11 @@
+[Unit]
+Description="Kaprica Daemon"
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=kapd
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
