@@ -11,7 +11,7 @@
 
 enum defaults
 {
-    NUMBER_OF_SOURCES = 35,
+    NUMBER_OF_SOURCES = 20,
     WINDOW_WIDTH = 340,
     WINDOW_HEIGHT = 430
 };
@@ -41,28 +41,36 @@ struct Widgets
     sqlite3 *db;
 };
 
+/* Used to pass around data throughout the entire search process */
 struct search_data
 {
     char *text;
     uint32_t total_sources;
+    /* found & offset are single integers stored as pointers
+     * so load_more_entries knows when they change */
     uint32_t *found;
     uint32_t *offset;
     int64_t *ids;
     struct Widgets *widgets;
     GtkWidget **buttons;
     GCancellable *cancellable;
-    gboolean active;
+    gboolean active; /* Whether a search is already running*/
 };
 
+/* Packs the id of the entry and widgets into a struct to pass to the
+ * callback */
 struct id_data
 {
     gpointer id;
     struct Widgets *widgets;
 };
 
+/* Used to load more entries into the list when the user scrolls */
 struct load_data
 {
     int64_t *ids;
+    /* found & offset are passed around as pointers so the search
+     * function can change them */
     uint32_t *found;
     uint32_t *offset;
     struct Widgets *widgets;
@@ -207,6 +215,8 @@ static GtkWidget *create_button(int64_t id, struct Widgets *widgets)
     GtkWidget *button = create_entry_button(id, widgets);
     GtkWidget *delete = create_delete_button(id, widgets);
 
+    /* Makes the buttons not focusable so tabbing and shift-tabbing only
+     * focuses the ListBoxRows */
     gtk_widget_set_can_focus(delete, FALSE);
     gtk_widget_set_can_focus(button, FALSE);
     gtk_widget_set_can_focus(button_box, FALSE);
@@ -225,15 +235,15 @@ static void load_more_entries(GtkScrolledWindow *scrolled_window,
 
     struct load_data *load = user_data;
     struct Widgets *widgets = load->widgets;
+    uint32_t offset = *load->offset;
 
-    for (int i = *load->offset;
-         i < *load->found && i < (NUMBER_OF_SOURCES + *load->offset); i++)
+    for (int i = offset;
+         i < *load->found && i < (NUMBER_OF_SOURCES + offset); i++)
     {
         GtkWidget *button = create_button(load->ids[i], widgets);
         gtk_list_box_insert(GTK_LIST_BOX(list), button, -1);
+        *load->offset += 1;
     }
-
-    *load->offset += NUMBER_OF_SOURCES;
 }
 
 static gboolean show_search_result(GObject *source_object, GAsyncResult *res,
@@ -247,8 +257,8 @@ static gboolean show_search_result(GObject *source_object, GAsyncResult *res,
     {
         gtk_list_box_insert(GTK_LIST_BOX(data->widgets->search_list),
                             data->buttons[i], -1);
+        *data->offset += 1;
     }
-    *data->offset += NUMBER_OF_SOURCES;
 
     if (*data->found)
     {
@@ -268,7 +278,7 @@ static gboolean show_search_result(GObject *source_object, GAsyncResult *res,
     return G_SOURCE_REMOVE;
 }
 
-static void find_search_result(GTask *task, gpointer task_data,
+static void find_search_result_async(GTask *task, gpointer task_data,
                                GCancellable *cancellable)
 {
     struct search_data *data = g_task_get_task_data(task);
@@ -304,12 +314,15 @@ static void search_database(GtkSearchEntry *search, gpointer user_data)
     *data->offset = 0;
     *data->found = 0;
     data->buttons = NULL;
-    data->cancellable = g_cancellable_new();
 
     if (data->active)
     {
         g_cancellable_cancel(data->cancellable);
         g_object_unref(data->cancellable);
+        data->cancellable = g_cancellable_new();
+    }
+    else
+    {
         data->cancellable = g_cancellable_new();
     }
 
@@ -318,7 +331,7 @@ static void search_database(GtkSearchEntry *search, gpointer user_data)
                              (GAsyncReadyCallback)show_search_result, NULL);
     g_task_set_task_data(task, data, NULL);
     g_task_set_return_on_cancel(task, FALSE);
-    g_task_run_in_thread(task, (GTaskThreadFunc)find_search_result);
+    g_task_run_in_thread(task, (GTaskThreadFunc)find_search_result_async);
 }
 
 static void confirm_clear_all(GtkWidget *button, gpointer user_data)
@@ -357,6 +370,37 @@ static void clear_all_yes(GtkWidget *button, gpointer user_data)
     gtk_widget_set_visible(widgets->confirm_vbox, FALSE);
 }
 
+static void show_entries(GObject *source_object, GAsyncResult *res,
+                         gpointer user_data)
+{
+    GTask *task = G_TASK(res);
+    GtkWidget **buttons = g_task_propagate_pointer(task, NULL);
+    const uint32_t *found = user_data;
+    GtkWidget *entry_list = GTK_WIDGET(source_object);
+
+    for (int i = 0; i < *found && i < NUMBER_OF_SOURCES; i++)
+    {
+        gtk_list_box_insert(GTK_LIST_BOX(entry_list), buttons[i], -1);
+    }
+}
+
+static void load_entries_async(GTask *task, gpointer task_data,
+                               GCancellable *cancellable)
+{
+    struct load_data *data = g_task_get_task_data(task);
+    struct Widgets *widgets = data->widgets;
+    GtkWidget **buttons = xmalloc(sizeof(GtkWidget *) * NUMBER_OF_SOURCES);
+    database_get_latest_entries(widgets->db, *data->found, *data->offset, data->ids);
+
+    for (int i = 0; i < *data->found && i < NUMBER_OF_SOURCES; i++)
+    {
+        buttons[i] = create_button(data->ids[i], widgets);
+        *data->offset += 1;
+    }
+
+    g_task_return_pointer(task, buttons, NULL);
+}
+
 static void activate(GtkApplication *app, gpointer user_data)
 {
     struct Widgets *widgets = xmalloc(sizeof(struct Widgets));
@@ -366,7 +410,7 @@ static void activate(GtkApplication *app, gpointer user_data)
                                 WINDOW_HEIGHT);
     widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
-    /* Setup global ESC shortcut to close the window */
+    /* Setup global ALT+ESC shortcut to close the window */
     GtkShortcutTrigger *trigger = gtk_keyval_trigger_new(GDK_KEY_Escape, GDK_ALT_MASK);
     GtkShortcutAction *action = gtk_callback_action_new((GtkShortcutFunc) gtk_window_destroy, widgets->window, NULL);
     GtkShortcut *shortcut = gtk_shortcut_new(trigger, action);
@@ -379,16 +423,10 @@ static void activate(GtkApplication *app, gpointer user_data)
     widgets->db = database_open(NULL);
     if (!widgets->db)
     {
-        fprintf(stderr, "Could not locate history database.\n");
+        fprintf(stderr, "Could not locate history database\n");
         exit(EXIT_FAILURE);
     }
-    uint32_t total_sources = database_get_total_entries(widgets->db),
-             offset = 0;
-    int64_t *ids = xmalloc(sizeof(int64_t) * total_sources);
-    uint32_t found =
-        database_get_latest_entries(widgets->db, total_sources, offset, ids);
-    found = found > NUMBER_OF_SOURCES ? NUMBER_OF_SOURCES : found;
-    offset += found;
+    uint32_t total_sources = database_get_total_entries(widgets->db);
 
     /* Setup list of all entries in the database */
     widgets->scrolled_window_entry = gtk_scrolled_window_new();
@@ -396,12 +434,17 @@ static void activate(GtkApplication *app, gpointer user_data)
     widgets->no_entry = gtk_label_new("No entries yet...");
 
     struct load_data *load = xmalloc(sizeof(struct load_data));
-    load->ids = ids;
+    load->ids = xmalloc(sizeof(int64_t) * total_sources);
     load->found = xmalloc(sizeof(uint32_t));
     load->offset = xmalloc(sizeof(uint32_t));
     *load->found = total_sources;
-    *load->offset = offset;
+    *load->offset = 0;
     load->widgets = widgets;
+
+    /* Load initial entries */
+    GTask *task = g_task_new(G_OBJECT(widgets->entry_list), NULL, (GAsyncReadyCallback)show_entries, load->found);
+    g_task_set_task_data(task, load, NULL);
+    g_task_run_in_thread(task, (GTaskThreadFunc)load_entries_async);
 
     gtk_scrolled_window_set_child(
         GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry),
@@ -418,11 +461,6 @@ static void activate(GtkApplication *app, gpointer user_data)
     g_signal_connect(widgets->entry_list, "row-activated",
                      G_CALLBACK(row_activated), NULL);
 
-    for (int i = 0; i < found; i++)
-    {
-        GtkWidget *button = create_button(ids[i], widgets);
-        gtk_list_box_insert(GTK_LIST_BOX(widgets->entry_list), button, -1);
-    }
 
     /* Setup searching */
     widgets->search_bar = gtk_search_entry_new();
@@ -449,7 +487,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_search_entry_set_placeholder_text(GTK_SEARCH_ENTRY(widgets->search_bar),
                                           "Search...");
     gtk_search_entry_set_search_delay(GTK_SEARCH_ENTRY(widgets->search_bar),
-                                      350);
+                                      200);
     gtk_scrolled_window_set_child(
         GTK_SCROLLED_WINDOW(widgets->scrolled_window_search),
         widgets->search_list);
@@ -534,7 +572,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_visible(widgets->scrolled_window_search, FALSE);
     gtk_widget_set_visible(widgets->confirm_vbox, FALSE);
 
-    if (found)
+    if (total_sources)
     {
         gtk_widget_set_visible(widgets->no_entry, FALSE);
     }
