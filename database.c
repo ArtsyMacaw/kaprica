@@ -160,7 +160,7 @@ static void prepare_all_statements(sqlite3 *db)
                                  "   WHERE history_id = ?1;";
     prepare_statement(db, get_thumbnail, &select_thumbnail);
 
-    const char get_total_entries[] = "SELECT COUNT(*) FROM clipboard_history;";
+    const char get_total_entries[] = "SELECT COUNT(history_id) FROM clipboard_history;";
     prepare_statement(db, get_total_entries, &total_entries);
 
     const char find_entry[] = "SELECT entry FROM content"

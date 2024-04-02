@@ -20,7 +20,7 @@
 #include "wlr-data-control.h"
 #include "xmalloc.h"
 
-enum
+enum defaults
 {
     SIGNAL_EVENT = 1,
     TIMER_EVENT = 2,
@@ -29,7 +29,7 @@ enum
     THIRTY_DAYS = 30,
     TEN_ENTRIES = 10,
     TEN_THOUSAND_ENTRIES = 10000,
-} defaults;
+};
 
 struct config
 {
@@ -45,7 +45,7 @@ static struct config options = {
     .seat = NULL,
     .database = NULL,
     .config = NULL,
-    /* Defaults to 2GB, Can't be stored in a enum due to overflow */
+    /* Defaults to 2GB, can't be stored in a enum due to overflow */
     .size = 2147483648,
     .expire = THIRTY_DAYS,
     .limit = TEN_THOUSAND_ENTRIES};
@@ -241,6 +241,7 @@ int main(int argc, char *argv[])
     char *config_file = find_config_file();
     if (config_file)
     {
+        printf("Loading configuration from %s\n", config_file);
         ini_parse(config_file, (ini_handler) config_handler, NULL);
         free(config_file);
     }
