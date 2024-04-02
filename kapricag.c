@@ -21,6 +21,8 @@ struct Widgets
     /* Main window */
     GtkWidget *window;
     GtkWidget *back_list;
+    GtkWidget *header_bar;
+    GtkWidget *close_window;
     /* Search */
     GtkWidget *search_bar;
     GtkWidget *scrolled_window_search;
@@ -469,10 +471,16 @@ static void activate(GtkApplication *app, gpointer user_data)
                      G_CALLBACK(row_activated), NULL);
 
     /* Setup searching */
+    widgets->header_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    widgets->close_window = gtk_button_new_from_icon_name("window-close");
     widgets->search_bar = gtk_search_entry_new();
     widgets->scrolled_window_search = gtk_scrolled_window_new();
     widgets->search_list = gtk_list_box_new();
     widgets->no_match = gtk_label_new("No matches found...");
+
+    gtk_box_prepend(GTK_BOX(widgets->header_bar), widgets->search_bar);
+    gtk_box_append(GTK_BOX(widgets->header_bar), widgets->close_window);
+    gtk_button_set_has_frame(GTK_BUTTON(widgets->close_window), FALSE);
 
     struct search_data *search = xmalloc(sizeof(struct search_data));
     search->active = FALSE;
@@ -511,6 +519,9 @@ static void activate(GtkApplication *app, gpointer user_data)
                      G_CALLBACK(load_more_entries), load_search);
     g_signal_connect(widgets->search_list, "row-activated",
                      G_CALLBACK(row_activated), NULL);
+    g_signal_connect_swapped(widgets->close_window, "clicked",
+                             G_CALLBACK(gtk_window_destroy),
+                             GTK_WINDOW(widgets->window));
 
     /* Setup clear all */
     widgets->clear_all = gtk_button_new_with_label("Clear All");
@@ -553,16 +564,18 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_vexpand(widgets->confirm_yes, TRUE);
     gtk_widget_set_hexpand(widgets->confirm_no, TRUE);
     gtk_widget_set_vexpand(widgets->confirm_no, TRUE);
+    gtk_widget_set_hexpand(widgets->search_bar, TRUE);
     gtk_widget_set_valign(widgets->scrolled_window_entry, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->scrolled_window_search, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->back_list, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->no_entry, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->search_bar, GTK_ALIGN_START);
+    gtk_widget_set_halign(widgets->search_bar, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->clear_all, GTK_ALIGN_END);
     gtk_box_set_homogeneous(GTK_BOX(widgets->back_list), FALSE);
 
     /* Pack the main box */
-    gtk_box_prepend(GTK_BOX(widgets->back_list), widgets->search_bar);
+    gtk_box_prepend(GTK_BOX(widgets->back_list), widgets->header_bar);
 
     /* Only one of these will be visible at a time */
     gtk_box_append(GTK_BOX(widgets->back_list),
