@@ -99,7 +99,8 @@ static void clicked(GtkWidget *button, gpointer user_data)
     }
 }
 
-static void row_activated(GtkListBox *box, GtkListBoxRow *row, gpointer user_data)
+static void row_activated(GtkListBox *box, GtkListBoxRow *row,
+                          gpointer user_data)
 {
     GtkWidget *button_box = gtk_list_box_row_get_child(row);
     GtkWidget *button = gtk_widget_get_first_child(button_box);
@@ -237,8 +238,8 @@ static void load_more_entries(GtkScrolledWindow *scrolled_window,
     struct Widgets *widgets = load->widgets;
     uint32_t offset = *load->offset;
 
-    for (int i = offset;
-         i < *load->found && i < (NUMBER_OF_SOURCES + offset); i++)
+    for (int i = offset; i < *load->found && i < (NUMBER_OF_SOURCES + offset);
+         i++)
     {
         GtkWidget *button = create_button(load->ids[i], widgets);
         gtk_list_box_insert(GTK_LIST_BOX(list), button, -1);
@@ -279,7 +280,7 @@ static gboolean show_search_result(GObject *source_object, GAsyncResult *res,
 }
 
 static void find_search_result_async(GTask *task, gpointer task_data,
-                               GCancellable *cancellable)
+                                     GCancellable *cancellable)
 {
     struct search_data *data = g_task_get_task_data(task);
 
@@ -390,7 +391,8 @@ static void load_entries_async(GTask *task, gpointer task_data,
     struct load_data *data = g_task_get_task_data(task);
     struct Widgets *widgets = data->widgets;
     GtkWidget **buttons = xmalloc(sizeof(GtkWidget *) * NUMBER_OF_SOURCES);
-    database_get_latest_entries(widgets->db, *data->found, *data->offset, data->ids);
+    database_get_latest_entries(widgets->db, *data->found, *data->offset,
+                                data->ids);
 
     for (int i = 0; i < *data->found && i < NUMBER_OF_SOURCES; i++)
     {
@@ -411,12 +413,16 @@ static void activate(GtkApplication *app, gpointer user_data)
     widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
     /* Setup global ALT+ESC shortcut to close the window */
-    GtkShortcutTrigger *trigger = gtk_keyval_trigger_new(GDK_KEY_Escape, GDK_ALT_MASK);
-    GtkShortcutAction *action = gtk_callback_action_new((GtkShortcutFunc) gtk_window_destroy, widgets->window, NULL);
+    GtkShortcutTrigger *trigger =
+        gtk_keyval_trigger_new(GDK_KEY_Escape, GDK_ALT_MASK);
+    GtkShortcutAction *action = gtk_callback_action_new(
+        (GtkShortcutFunc)gtk_window_destroy, widgets->window, NULL);
     GtkShortcut *shortcut = gtk_shortcut_new(trigger, action);
     GtkEventController *controller = gtk_shortcut_controller_new();
-    gtk_shortcut_controller_set_scope(GTK_SHORTCUT_CONTROLLER(controller), GTK_SHORTCUT_SCOPE_GLOBAL);
-    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller), shortcut);
+    gtk_shortcut_controller_set_scope(GTK_SHORTCUT_CONTROLLER(controller),
+                                      GTK_SHORTCUT_SCOPE_GLOBAL);
+    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
+                                         shortcut);
     gtk_widget_add_controller(widgets->window, controller);
 
     /* Open a connection to the database */
@@ -442,7 +448,8 @@ static void activate(GtkApplication *app, gpointer user_data)
     load->widgets = widgets;
 
     /* Load initial entries */
-    GTask *task = g_task_new(G_OBJECT(widgets->entry_list), NULL, (GAsyncReadyCallback)show_entries, load->found);
+    GTask *task = g_task_new(G_OBJECT(widgets->entry_list), NULL,
+                             (GAsyncReadyCallback)show_entries, load->found);
     g_task_set_task_data(task, load, NULL);
     g_task_run_in_thread(task, (GTaskThreadFunc)load_entries_async);
 
@@ -460,7 +467,6 @@ static void activate(GtkApplication *app, gpointer user_data)
                      G_CALLBACK(load_more_entries), load);
     g_signal_connect(widgets->entry_list, "row-activated",
                      G_CALLBACK(row_activated), NULL);
-
 
     /* Setup searching */
     widgets->search_bar = gtk_search_entry_new();

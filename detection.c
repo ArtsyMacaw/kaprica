@@ -88,7 +88,8 @@ static bool is_utf8_text(const char *mime_type)
 static bool is_explicit_text(const char *mime_type)
 {
     /* Known bad mime types that are either not text or not useful */
-    if (!strncmp("text/_moz_htmlinfo", mime_type, strlen("text/_moz_htmlinfo")) ||
+    if (!strncmp("text/_moz_htmlinfo", mime_type,
+                 strlen("text/_moz_htmlinfo")) ||
         !strncmp("text/ico", mime_type, strlen("text/ico")))
     {
         return false;

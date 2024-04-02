@@ -140,8 +140,8 @@ static void parse_options(int argc, char *argv[])
     }
 }
 
-/* Check $HOME/.config/kaprica/config, /etc/kaprica/config, and $XDG_CONFIG_HOME/kaprica/config
- * for the configuration file */
+/* Check $HOME/.config/kaprica/config, /etc/kaprica/config, and
+ * $XDG_CONFIG_HOME/kaprica/config for the configuration file */
 static char *find_config_file()
 {
     if (options.config)
@@ -153,14 +153,16 @@ static char *find_config_file()
     char *config_path = NULL;
     if (config_home)
     {
-        config_path = xmalloc(strlen(config_home) + strlen("/kaprica/config") + 1);
+        config_path =
+            xmalloc(strlen(config_home) + strlen("/kaprica/config") + 1);
         strcpy(config_path, config_home);
         strcat(config_path, "/kaprica/config");
     }
     else
     {
         char *home = getenv("HOME");
-        config_path = xmalloc(strlen(home) + strlen("/.config/kaprica/config") + 1);
+        config_path =
+            xmalloc(strlen(home) + strlen("/.config/kaprica/config") + 1);
         strcpy(config_path, home);
         strcat(config_path, "/.config/kaprica/config");
     }
@@ -179,7 +181,7 @@ static char *find_config_file()
 }
 
 static void config_handler(void *user, const char *section, const char *name,
-                          const char *value)
+                           const char *value)
 {
     /* Always check if the option has already been set from the command line
      * so that it doesn't get overwritten */
@@ -242,7 +244,7 @@ int main(int argc, char *argv[])
     if (config_file)
     {
         printf("Loading configuration from %s\n", config_file);
-        ini_parse(config_file, (ini_handler) config_handler, NULL);
+        ini_parse(config_file, (ini_handler)config_handler, NULL);
         free(config_file);
     }
 
