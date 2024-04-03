@@ -311,7 +311,7 @@ int main(int argc, char *argv[])
         }
 
         wl_display_dispatch(clip->display);
-    } while (!selection_set);
+    } while (selection_set == false);
 
     while (true)
     {
@@ -397,6 +397,9 @@ int main(int argc, char *argv[])
             break;
         }
     }
+
+    /* Defragment and optimize the database before closing */
+    database_maintenance(db);
 
     /* Cleanup that shouldn't be necessary but helps analyze with valgrind */
     database_close(db);

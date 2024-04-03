@@ -11,8 +11,10 @@
 #include "xmalloc.h"
 
 /* Bootstrapping statements */
-static sqlite3_stmt *create_main_table, *create_content_table,
-    *pragma_foreign_keys, *pragma_journal_wal;
+static sqlite3_stmt *create_main_table, *create_content_table;
+/* Pragma statements */
+static sqlite3_stmt *pragma_foreign_keys, *pragma_journal_wal,
+    *pragma_secure_delete, *pragma_auto_vacuum, *pragma_optimize;
 /* Index statements */
 static sqlite3_stmt *create_data_index, *create_mime_index,
     *create_snippet_index, *create_thumbnail_index, *create_timestamp_index,
@@ -74,6 +76,15 @@ static void prepare_bootstrap_statements(sqlite3 *db)
 
     const char journal_wal[] = "PRAGMA journal_mode = WAL;";
     prepare_statement(db, journal_wal, &pragma_journal_wal);
+
+    const char secure_delete[] = "PRAGMA secure_delete = OFF;";
+    prepare_statement(db, secure_delete, &pragma_secure_delete);
+
+    const char auto_vacuum[] = "PRAGMA auto_vacuum = NONE;";
+    prepare_statement(db, auto_vacuum, &pragma_auto_vacuum);
+
+    const char optimize[] = "PRAGMA optimize;";
+    prepare_statement(db, optimize, &pragma_optimize);
 
     const char main_table[] =
         "CREATE TABLE IF NOT EXISTS clipboard_history ("
@@ -311,7 +322,12 @@ uint32_t database_delete_largest_entries(sqlite3 *db, uint32_t num_of_entries)
     sqlite3_reset(delete_large_entries);
     sqlite3_clear_bindings(delete_large_entries);
 
-    return sqlite3_changes(db);
+    /* Get number of changes before we vacuum */
+    int ret = sqlite3_changes(db);
+
+    sqlite3_exec(db, "VACUUM;", NULL, NULL, NULL);
+
+    return ret;
 }
 
 void database_insert_entry(sqlite3 *db, source_buffer *src)
@@ -597,6 +613,8 @@ sqlite3 *database_init(char *filepath)
     prepare_bootstrap_statements(db);
     // execute_statement(pragma_journal_wal);
     execute_statement(pragma_foreign_keys);
+    execute_statement(pragma_auto_vacuum);
+    execute_statement(pragma_secure_delete);
     execute_statement(create_main_table);
     execute_statement(create_content_table);
 
@@ -635,12 +653,23 @@ sqlite3 *database_open(char *filepath)
     prepare_bootstrap_statements(db);
 
     execute_statement(pragma_foreign_keys);
+    execute_statement(pragma_auto_vacuum);
+    execute_statement(pragma_secure_delete);
+    // execute_statement(pragma_journal_wal);
     execute_statement(create_main_table);
     execute_statement(create_content_table);
 
     prepare_all_statements(db);
 
     return db;
+}
+
+void database_maintenance(sqlite3 *db)
+{
+    sqlite3_exec(db, "VACUUM;", NULL, NULL, NULL);
+
+    execute_statement(pragma_optimize);
+    sqlite3_reset(pragma_optimize);
 }
 
 void database_close(sqlite3 *db)
@@ -668,6 +697,11 @@ void database_close(sqlite3 *db)
     sqlite3_finalize(create_thumbnail_index);
     sqlite3_finalize(create_timestamp_index);
     sqlite3_finalize(create_hash_index);
+    sqlite3_finalize(delete_large_entries);
+    sqlite3_finalize(find_matching_entries_glob);
+    sqlite3_finalize(pragma_secure_delete);
+    sqlite3_finalize(pragma_auto_vacuum);
+    sqlite3_finalize(pragma_optimize);
     sqlite3_db_release_memory(db);
     sqlite3_close(db);
 }
