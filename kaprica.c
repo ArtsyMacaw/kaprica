@@ -141,11 +141,12 @@ static const struct option search[] = {
     {"snippet", no_argument, NULL, 's'},
     {"list", no_argument, NULL, 'L'},
     {"type", no_argument, NULL, 't'},
+    {"glob", no_argument, NULL, 'g'},
     {"database", required_argument, NULL, 'D'},
     {0, 0, 0, 0}};
 
 static const char search_help[] =
-    "Usage: kapc search [options]\n"
+    "Usage: kapc search [options] <search-data>\n"
     "\n"
     "Options:\n"
     "    -h, --help             Show this help message\n"
@@ -155,6 +156,7 @@ static const char search_help[] =
     "    -i, --id               Show only the ids of the entries found\n"
     "    -s, --snippet          Show only the snippets of the entries found\n"
     "    -t, --type             Search by MIME type\n"
+    "    -g, --glob             Search by glob pattern\n"
     "    -L, --list             Output in machine-readable format\n"
     "    -D, --database </path> Specify the path to the database\n";
 
@@ -165,11 +167,12 @@ static const struct option delete[] = {
     {"id", no_argument, NULL, 'i'},
     {"type", no_argument, NULL, 't'},
     {"accept", no_argument, NULL, 'a'},
+    {"glob", no_argument, NULL, 'g'},
     {"database", required_argument, NULL, 'D'},
     {0, 0, 0, 0}};
 
 static const char delete_help[] =
-    "Usage: kapc delete [options] <text to delete>\n"
+    "Usage: kapc delete [options] <search-data>\n"
     "\n"
     "Options:\n"
     "    -h, --help             Show this help message\n"
@@ -177,6 +180,7 @@ static const char delete_help[] =
     "    -l, --limit <max>      Limit the number of entries deleted\n"
     "    -a, --accept           Don't ask for confirmation when deleting "
     "entries\n"
+    "    -g, --glob             Search by glob pattern\n"
     "    -t, --type             Delete by MIME type\n"
     "    -i, --id               Delete one or more id's from history\n"
     "    -D, --database </path> Specify the path to the database\n";
@@ -207,13 +211,13 @@ static void parse_options(int argc, char *argv[])
     else if (!strcmp(argv[1], "search"))
     {
         action = (void *)search;
-        opt_string = "hvl:itLsD:";
+        opt_string = "hvl:itLsD:g";
         options.action = SEARCH;
     }
     else if (!strcmp(argv[1], "delete"))
     {
         action = (void *)delete;
-        opt_string = "hvl:itaD:";
+        opt_string = "hvl:itaD:g";
         options.action = DELETE;
     }
     else if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))
@@ -287,6 +291,9 @@ static void parse_options(int argc, char *argv[])
             break;
         case 'a':
             options.accept = 'a';
+            break;
+        case 'g':
+            options.search_type = GLOB;
             break;
         case 'D':
             options.db_path = xstrdup(optarg);

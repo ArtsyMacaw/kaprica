@@ -21,7 +21,7 @@ static sqlite3_stmt *create_data_index, *create_mime_index,
 static sqlite3_stmt *insert_entry, *insert_entry_content;
 /* Search statements */
 static sqlite3_stmt *find_matching_entries, *find_matching_types,
-    *find_entry_from_snippet;
+    *find_entry_from_snippet, *find_matching_entries_glob;
 /* Retrieval statements */
 static sqlite3_stmt *select_latest_entries, *select_entry, *select_snippet,
     *select_thumbnail, *total_entries, *select_size;
@@ -176,6 +176,10 @@ static void prepare_all_statements(sqlite3 *db)
     const char find_entry_snippet[] = "SELECT history_id FROM clipboard_history"
                                       "    WHERE snippet=?1;";
     prepare_statement(db, find_entry_snippet, &find_entry_from_snippet);
+
+    const char find_entry_glob[] = "SELECT entry FROM content"
+                                   "    WHERE data GLOB ?1;";
+    prepare_statement(db, find_entry_glob, &find_matching_entries_glob);
 
     const char remove_entry[] = "DELETE FROM clipboard_history"
                                 "    WHERE history_id = ?1;";
@@ -355,6 +359,11 @@ uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
     else if (type == CONTENT)
     {
         search = find_matching_entries;
+    }
+    else if (type == GLOB)
+    {
+        search = find_matching_entries_glob;
+        printf("GLOB\n");
     }
     else
     {
