@@ -53,6 +53,7 @@ struct search_data
     uint32_t *found;
     uint32_t *offset;
     int64_t *ids;
+    enum search_type type;
     struct Widgets *widgets;
     GtkWidget **buttons;
     GCancellable *cancellable;
@@ -288,7 +289,7 @@ static void find_search_result_async(GTask *task, gpointer task_data,
 
     *data->found = database_find_matching_entries(
         data->widgets->db, (void *)data->text, strlen(data->text),
-        data->total_sources, data->ids, FALSE);
+        data->total_sources, data->ids, data->type);
     data->buttons = xmalloc(sizeof(GtkWidget *) * *data->found);
 
     for (int i = 0; i < *data->found; i++)
@@ -311,6 +312,21 @@ static void search_database(GtkSearchEntry *search, gpointer user_data)
         gtk_widget_set_visible(widgets->scrolled_window_search, FALSE);
         gtk_widget_set_visible(widgets->no_match, FALSE);
         return;
+    }
+
+    if (strncmp(text, "type:", strlen("type:")) == 0)
+    {
+        data->type = MIME_TYPE;
+        text += strlen("type:");
+    }
+    else if (strncmp(text, "glob:", strlen("glob:")) == 0)
+    {
+        data->type = GLOB;
+        text += strlen("glob:");
+    }
+    else
+    {
+        data->type = CONTENT;
     }
 
     data->text = xstrdup(text);
