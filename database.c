@@ -344,6 +344,8 @@ void database_insert_entry(sqlite3 *db, source_buffer *src)
         sqlite3_reset(insert_entry_content);
         sqlite3_clear_bindings(insert_entry_content);
     }
+
+    database_delete_duplicate_entries(db);
 }
 uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
                                         uint32_t num_of_entries,
