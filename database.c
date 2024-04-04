@@ -13,8 +13,8 @@
 /* Bootstrapping statements */
 static sqlite3_stmt *create_main_table, *create_content_table;
 /* Pragma statements */
-static sqlite3_stmt *pragma_foreign_keys, *pragma_journal_wal,
-    *pragma_secure_delete, *pragma_auto_vacuum, *pragma_optimize;
+static sqlite3_stmt *pragma_foreign_keys, *pragma_secure_delete,
+    *pragma_auto_vacuum, *pragma_optimize;
 /* Index statements */
 static sqlite3_stmt *create_data_index, *create_mime_index,
     *create_snippet_index, *create_thumbnail_index, *create_timestamp_index,
@@ -73,9 +73,6 @@ static void prepare_bootstrap_statements(sqlite3 *db)
 {
     const char foreign_keys[] = "PRAGMA foreign_keys = ON;";
     prepare_statement(db, foreign_keys, &pragma_foreign_keys);
-
-    const char journal_wal[] = "PRAGMA journal_mode = WAL;";
-    prepare_statement(db, journal_wal, &pragma_journal_wal);
 
     const char secure_delete[] = "PRAGMA secure_delete = OFF;";
     prepare_statement(db, secure_delete, &pragma_secure_delete);
@@ -611,7 +608,6 @@ sqlite3 *database_init(char *filepath)
     free(filepath);
 
     prepare_bootstrap_statements(db);
-    // execute_statement(pragma_journal_wal);
     execute_statement(pragma_foreign_keys);
     execute_statement(pragma_auto_vacuum);
     execute_statement(pragma_secure_delete);
@@ -655,7 +651,6 @@ sqlite3 *database_open(char *filepath)
     execute_statement(pragma_foreign_keys);
     execute_statement(pragma_auto_vacuum);
     execute_statement(pragma_secure_delete);
-    // execute_statement(pragma_journal_wal);
     execute_statement(create_main_table);
     execute_statement(create_content_table);
 
@@ -683,7 +678,6 @@ void database_close(sqlite3 *db)
     sqlite3_finalize(create_main_table);
     sqlite3_finalize(create_content_table);
     sqlite3_finalize(find_matching_entries);
-    sqlite3_finalize(pragma_journal_wal);
     sqlite3_finalize(select_snippet);
     sqlite3_finalize(find_matching_types);
     sqlite3_finalize(delete_entry);
