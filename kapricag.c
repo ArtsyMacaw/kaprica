@@ -16,6 +16,7 @@ enum defaults
     WINDOW_HEIGHT = 430
 };
 
+// TODO: Convert UI interface into a blueprint file
 struct Widgets
 {
     /* Main window */
@@ -23,6 +24,7 @@ struct Widgets
     GtkWidget *back_list;
     GtkWidget *header_bar;
     GtkWidget *close_window;
+    GtkWidget *visible;
     /* Search */
     GtkWidget *search_bar;
     GtkWidget *scrolled_window_search;
@@ -231,6 +233,13 @@ static GtkWidget *create_button(int64_t id, struct Widgets *widgets)
     return button_box;
 }
 
+static void swap_visible(struct Widgets *widgets, GtkWidget *list)
+{
+    gtk_widget_set_visible(widgets->visible, FALSE);
+    gtk_widget_set_visible(list, TRUE);
+    widgets->visible = list;
+}
+
 static void load_more_entries(GtkScrolledWindow *scrolled_window,
                               GtkPositionType pos, gpointer user_data)
 {
@@ -266,15 +275,11 @@ static gboolean show_search_result(GObject *source_object, GAsyncResult *res,
 
     if (*data->found)
     {
-        gtk_widget_set_visible(data->widgets->scrolled_window_entry, FALSE);
-        gtk_widget_set_visible(data->widgets->no_match, FALSE);
-        gtk_widget_set_visible(data->widgets->scrolled_window_search, TRUE);
+        swap_visible(data->widgets, data->widgets->scrolled_window_search);
     }
     else
     {
-        gtk_widget_set_visible(data->widgets->scrolled_window_entry, FALSE);
-        gtk_widget_set_visible(data->widgets->scrolled_window_search, FALSE);
-        gtk_widget_set_visible(data->widgets->no_match, TRUE);
+        swap_visible(data->widgets, data->widgets->no_match);
     }
 
     data->active = FALSE;
@@ -308,9 +313,7 @@ static void search_database(GtkSearchEntry *search, gpointer user_data)
 
     if (!strlen(text))
     {
-        gtk_widget_set_visible(widgets->scrolled_window_entry, TRUE);
-        gtk_widget_set_visible(widgets->scrolled_window_search, FALSE);
-        gtk_widget_set_visible(widgets->no_match, FALSE);
+        swap_visible(widgets, widgets->scrolled_window_entry);
         return;
     }
 
@@ -357,11 +360,11 @@ static void confirm_clear_all(GtkWidget *button, gpointer user_data)
 {
     struct Widgets *widgets = user_data;
 
-    gtk_widget_set_visible(widgets->scrolled_window_entry, FALSE);
-    gtk_widget_set_visible(widgets->scrolled_window_search, FALSE);
+    /* Make close button stick to the right */
+    gtk_widget_set_hexpand(widgets->close_window, TRUE);
+
     gtk_widget_set_visible(widgets->clear_all, FALSE);
-    gtk_widget_set_visible(widgets->no_match, FALSE);
-    gtk_widget_set_visible(widgets->no_entry, FALSE);
+    gtk_widget_set_visible(widgets->visible, FALSE);
     gtk_widget_set_visible(widgets->search_bar, FALSE);
     gtk_widget_set_visible(widgets->confirm_vbox, TRUE);
 }
@@ -370,9 +373,11 @@ static void clear_all_no(GtkWidget *button, gpointer user_data)
 {
     struct Widgets *widgets = user_data;
 
-    gtk_widget_set_visible(widgets->clear_all, TRUE);
-    gtk_widget_set_visible(widgets->scrolled_window_entry, TRUE);
+    gtk_widget_set_hexpand(widgets->close_window, FALSE);
+
     gtk_widget_set_visible(widgets->search_bar, TRUE);
+    gtk_widget_set_visible(widgets->visible, TRUE);
+    gtk_widget_set_visible(widgets->clear_all, TRUE);
     gtk_widget_set_visible(widgets->confirm_vbox, FALSE);
 }
 
@@ -383,10 +388,14 @@ static void clear_all_yes(GtkWidget *button, gpointer user_data)
     // implement database_clear_all(db);
     gtk_list_box_remove_all(GTK_LIST_BOX(widgets->entry_list));
 
+    gtk_widget_set_hexpand(widgets->close_window, FALSE);
+
     gtk_widget_set_visible(widgets->clear_all, TRUE);
     gtk_widget_set_visible(widgets->no_entry, TRUE);
     gtk_widget_set_visible(widgets->search_bar, TRUE);
     gtk_widget_set_visible(widgets->confirm_vbox, FALSE);
+
+    widgets->visible = widgets->no_entry;
 }
 
 static void show_entries(GObject *source_object, GAsyncResult *res,
@@ -581,12 +590,15 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_hexpand(widgets->confirm_no, TRUE);
     gtk_widget_set_vexpand(widgets->confirm_no, TRUE);
     gtk_widget_set_hexpand(widgets->search_bar, TRUE);
+    gtk_widget_set_hexpand(widgets->header_bar, TRUE);
     gtk_widget_set_valign(widgets->scrolled_window_entry, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->scrolled_window_search, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->back_list, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->no_entry, GTK_ALIGN_FILL);
     gtk_widget_set_valign(widgets->search_bar, GTK_ALIGN_START);
     gtk_widget_set_halign(widgets->search_bar, GTK_ALIGN_FILL);
+    gtk_widget_set_halign(widgets->header_bar, GTK_ALIGN_FILL);
+    gtk_widget_set_halign(widgets->close_window, GTK_ALIGN_END);
     gtk_widget_set_valign(widgets->clear_all, GTK_ALIGN_END);
     gtk_box_set_homogeneous(GTK_BOX(widgets->back_list), FALSE);
 
@@ -610,10 +622,12 @@ static void activate(GtkApplication *app, gpointer user_data)
     if (total_sources)
     {
         gtk_widget_set_visible(widgets->no_entry, FALSE);
+        widgets->visible = widgets->scrolled_window_entry;
     }
     else
     {
         gtk_widget_set_visible(widgets->scrolled_window_entry, FALSE);
+        widgets->visible = widgets->no_entry;
     }
 
     gtk_window_set_child(GTK_WINDOW(widgets->window), widgets->back_list);
