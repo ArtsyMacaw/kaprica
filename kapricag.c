@@ -521,6 +521,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_box_prepend(GTK_BOX(widgets->header_bar), widgets->search_bar);
     gtk_box_append(GTK_BOX(widgets->header_bar), widgets->close_window);
     gtk_button_set_has_frame(GTK_BUTTON(widgets->close_window), FALSE);
+    gtk_widget_set_can_focus(widgets->close_window, FALSE);
 
     struct search_data *search = xmalloc(sizeof(struct search_data));
     search->active = FALSE;
@@ -553,6 +554,8 @@ static void activate(GtkApplication *app, gpointer user_data)
         GTK_SCROLLED_WINDOW(widgets->scrolled_window_search), GTK_POLICY_NEVER,
         GTK_POLICY_AUTOMATIC);
 
+    // TODO: When the user hits enter it should copy the first entry to the
+    // clipboard
     g_signal_connect(widgets->search_bar, "search-changed",
                      G_CALLBACK(search_database), search);
     g_signal_connect(widgets->scrolled_window_search, "edge-reached",
