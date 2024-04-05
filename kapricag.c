@@ -16,6 +16,25 @@ enum defaults
     WINDOW_HEIGHT = 430
 };
 
+struct config
+{
+    gboolean no_csd;
+    char *database;
+    char *seat;
+};
+
+static struct config options = {
+    .no_csd = FALSE, .database = NULL, .seat = NULL};
+
+GOptionEntry entries[] = {{"no-csd", 'n', 0, G_OPTION_ARG_NONE, &options.no_csd,
+                           "Disable client-side decorations", NULL},
+                          {"database", 'd', 0, G_OPTION_ARG_STRING,
+                           &options.database, "Path to the history database",
+                           NULL},
+                          {"seat", 's', 0, G_OPTION_ARG_STRING, &options.seat,
+                           "The seat to use for the clipboard", NULL},
+                          {NULL}};
+
 // TODO: Convert UI interface into a blueprint file
 struct Widgets
 {
@@ -453,7 +472,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_add_controller(widgets->window, controller);
 
     /* Open a connection to the database */
-    widgets->db = database_open(NULL);
+    widgets->db = database_open(options.database);
     if (!widgets->db)
     {
         fprintf(stderr, "Could not locate history database\n");
@@ -619,6 +638,11 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_visible(widgets->scrolled_window_search, FALSE);
     gtk_widget_set_visible(widgets->confirm_vbox, FALSE);
 
+    if (options.no_csd)
+    {
+        gtk_widget_set_visible(widgets->close_window, FALSE);
+    }
+
     if (total_sources)
     {
         gtk_widget_set_visible(widgets->no_entry, FALSE);
@@ -638,6 +662,8 @@ int main(int argc, char *argv[])
 {
     GtkApplication *app = gtk_application_new("com.github.artsymacaw.kaprica",
                                               G_APPLICATION_DEFAULT_FLAGS);
+    g_application_add_main_option_entries(G_APPLICATION(app), entries);
+
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
 
     g_application_run(G_APPLICATION(app), argc, argv);
