@@ -378,7 +378,6 @@ uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
     else if (type == GLOB)
     {
         search = find_matching_entries_glob;
-        printf("GLOB\n");
     }
     else
     {
