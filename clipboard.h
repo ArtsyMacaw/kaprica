@@ -29,6 +29,7 @@ typedef struct
     size_t len[MAX_MIME_TYPES];
     bool invalid_data[MAX_MIME_TYPES];
     bool expired;
+    bool password;
     uint8_t num_types;
     struct zwlr_data_control_offer_v1 *offer;
     clipboard_buffer buf;
@@ -46,6 +47,7 @@ typedef struct
     size_t thumbnail_len;
     bool offer_once;
     bool expired;
+    bool password;
     uint8_t num_types;
     struct zwlr_data_control_source_v1 *source;
 } source_buffer;

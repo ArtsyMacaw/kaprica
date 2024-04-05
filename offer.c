@@ -33,6 +33,12 @@ data_control_offer_mime_handler(void *data,
     clipboard *clip = (clipboard *)data;
     offer_buffer *ofr = clip->selection_offer;
 
+    /* Mime type indicates that the data is a password */
+    if (strcmp("x-kde-passwordManagerHint", mime_type) == 0)
+    {
+        ofr->password = true;
+    }
+
     if (ofr->num_types < (MAX_MIME_TYPES - 1))
     {
         uint8_t index = ofr->num_types;
@@ -108,6 +114,7 @@ void sync_buffers(clipboard *clip)
             src->num_types++;
         }
     }
+    src->password = ofr->password;
     src->snippet = calloc(sizeof(char), SNIPPET_SIZE);
     get_snippet(src);
     get_thumbnail(src);

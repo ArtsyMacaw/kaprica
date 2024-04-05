@@ -310,8 +310,15 @@ int main(int argc, char *argv[])
 
             if (clip_get_selection(clip))
             {
-                database_insert_entry(db, clip->selection_source);
-                num_of_entries++;
+                if (clip->selection_source->password)
+                {
+                    printf("Password detected, not saving\n");
+                }
+                else
+                {
+                    database_insert_entry(db, clip->selection_source);
+                    num_of_entries++;
+                }
                 clip->serving = false;
             }
             else
