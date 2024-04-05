@@ -20,19 +20,15 @@ struct config
 {
     gboolean no_csd;
     char *database;
-    char *seat;
 };
 
-static struct config options = {
-    .no_csd = FALSE, .database = NULL, .seat = NULL};
+static struct config options = {.no_csd = FALSE, .database = NULL};
 
 GOptionEntry entries[] = {{"no-csd", 'n', 0, G_OPTION_ARG_NONE, &options.no_csd,
                            "Disable client-side decorations", NULL},
                           {"database", 'd', 0, G_OPTION_ARG_STRING,
                            &options.database, "Path to the history database",
                            NULL},
-                          {"seat", 's', 0, G_OPTION_ARG_STRING, &options.seat,
-                           "The seat to use for the clipboard", NULL},
                           {NULL}};
 
 // TODO: Convert UI interface into a blueprint file

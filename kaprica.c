@@ -40,7 +40,6 @@ struct config
     char *db_path;
     bool snippets;
     enum search_type search_type;
-    char *seat;
     char *type;
     int64_t limit;
     enum verb action;
@@ -59,7 +58,6 @@ static struct config options = {.foreground = false,
                                 .clear = false,
                                 .paste_once = false,
                                 .limit = -1,
-                                .seat = NULL,
                                 .type = NULL,
                                 .action = 0};
 
@@ -85,7 +83,6 @@ static const struct option copy[] = {{"help", no_argument, NULL, 'h'},
                                      {"clear", no_argument, NULL, 'c'},
                                      {"id", no_argument, NULL, 'i'},
                                      {"type", required_argument, NULL, 't'},
-                                     {"seat", required_argument, NULL, 's'},
                                      {"reverse-search", no_argument, NULL, 'r'},
                                      {"database", required_argument, NULL, 'D'},
                                      {0, 0, 0, 0}};
@@ -105,7 +102,6 @@ static const char copy_help[] =
     "from the database\n"
     "    -o, --paste-once       Only serve one paste request and then exit\n"
     "    -c, --clear            Instead of copying, clear the clipboard\n"
-    "    -s, --seat <seat>      Pick the seat to use\n"
     "    -t, --type <type>      Manually specify MIME type to offer\n"
     "    -D, --database </path> Specify the path to the database\n";
 
@@ -116,7 +112,6 @@ static const struct option paste[] = {
     {"id", no_argument, NULL, 'i'},
     {"no-newline", no_argument, NULL, 'n'},
     {"type", required_argument, NULL, 't'},
-    {"seat", required_argument, NULL, 's'},
     {"database", required_argument, NULL, 'D'},
     {0, 0, 0, 0}};
 
@@ -129,7 +124,6 @@ static const char paste_help[] =
     "    -l, --list-types       Instead of pasting, list the offered types\n"
     "    -n, --no-newline       Do not add a newline character\n"
     "    -i, --id               Paste one or more id's from history\n"
-    "    -s, --seat <seat>      Pick the seat to use\n"
     "    -t, --type <type>      Manually specify MIME type to paste\n"
     "    -D, --database </path> Specify the path to the database\n";
 
@@ -199,13 +193,13 @@ static void parse_options(int argc, char *argv[])
     if (!strcmp(argv[1], "copy"))
     {
         action = (void *)copy;
-        opt_string = "hfnt:s:coviD:r";
+        opt_string = "hfnt:coviD:r";
         options.action = COPY;
     }
     else if (!strcmp(argv[1], "paste"))
     {
         action = (void *)paste;
-        opt_string = "hlt:s:nviD:";
+        opt_string = "hlt:nviD:";
         options.action = PASTE;
     }
     else if (!strcmp(argv[1], "search"))
@@ -236,19 +230,13 @@ static void parse_options(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    while (true)
+    int c;
+    /* Since we handle argv[1] ourselves, pass a modified argc & argv
+     * to 'hide' it from getopt */
+    while ((c = getopt_long((argc - 1), (argv + 1), opt_string,
+                            (struct option *)action, NULL)) != -1)
+
     {
-        /* Since we handle argv[1] ourselves, pass a modified argc & argv
-         * to 'hide' it from getopt */
-        int option_index = 0;
-        int c = getopt_long((argc - 1), (argv + 1), opt_string,
-                            (struct option *)action, &option_index);
-
-        if (c == -1)
-        {
-            break;
-        }
-
         switch (c)
         {
         case 'v':

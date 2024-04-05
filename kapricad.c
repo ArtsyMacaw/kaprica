@@ -33,7 +33,6 @@ enum defaults
 
 struct config
 {
-    char *seat;
     char *database;
     char *config;
     uint64_t size;
@@ -42,7 +41,6 @@ struct config
 };
 
 static struct config options = {
-    .seat = NULL,
     .database = NULL,
     .config = NULL,
     /* Defaults to 2GB, can't be stored in a enum due to overflow */
@@ -56,7 +54,6 @@ static const char help[] =
     "Options:\n"
     "    -h, --help               Show this help message\n"
     "    -v, --version            Show version number\n"
-    "    -s, --seat <seat>        Specify the seat to use\n"
     "    -D, --database </path>   Specify the path to the database\n"
     "    -S, --size <(x)KB/MB/GB> Limit the size of the database\n"
     "    -e, --expire <x-days>    Set the time before an entry in the database "
@@ -68,7 +65,6 @@ static const char help[] =
 static const struct option arguments[] = {
     {"help", no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'v'},
-    {"seat", required_argument, NULL, 's'},
     {"database", required_argument, NULL, 'D'},
     {"size", required_argument, NULL, 'S'},
     {"expire", required_argument, NULL, 'e'},
@@ -104,8 +100,7 @@ static uint64_t parse_size(const char *size)
 static void parse_options(int argc, char *argv[])
 {
     int c;
-    while ((c = getopt_long(argc, argv, "hvs:D:S:e:l:c:", arguments, NULL)) !=
-           -1)
+    while ((c = getopt_long(argc, argv, "hvD:S:e:l:c:", arguments, NULL)) != -1)
     {
         switch (c)
         {
@@ -115,9 +110,6 @@ static void parse_options(int argc, char *argv[])
         case 'v':
             printf("Kaprica pre-release\n");
             exit(EXIT_SUCCESS);
-        case 's':
-            options.seat = xstrdup(optarg);
-            break;
         case 'D':
             options.database = xstrdup(optarg);
             break;
@@ -149,7 +141,7 @@ static char *find_config_file()
         return options.config;
     }
 
-    char *config_home = getenv("XDG_CONFIG_HOME");
+    const char *config_home = getenv("XDG_CONFIG_HOME");
     char *config_path = NULL;
     if (config_home)
     {
@@ -160,7 +152,7 @@ static char *find_config_file()
     }
     else
     {
-        char *home = getenv("HOME");
+        const char *home = getenv("HOME");
         config_path =
             xmalloc(strlen(home) + strlen("/.config/kaprica/config") + 1);
         strcpy(config_path, home);
@@ -185,14 +177,7 @@ static void config_handler(void *user, const char *section, const char *name,
 {
     /* Always check if the option has already been set from the command line
      * so that it doesn't get overwritten */
-    if (strcmp(name, "seat") == 0)
-    {
-        if (options.seat == NULL)
-        {
-            options.seat = xstrdup(value);
-        }
-    }
-    else if (strcmp(name, "database") == 0)
+    if (strcmp(name, "database") == 0)
     {
         if (options.database == NULL)
         {
