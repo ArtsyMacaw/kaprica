@@ -133,7 +133,10 @@ static void delete_entry(GtkWidget *button, gpointer user_data)
     struct id_data *data = user_data;
     int64_t t = GPOINTER_TO_UINT(data->id);
     database_delete_entry(data->widgets->db, t);
-    gtk_widget_set_visible(gtk_widget_get_parent(button), FALSE);
+    GtkWidget *button_box = gtk_widget_get_parent(button);
+    GtkWidget *ListBoxRow = gtk_widget_get_parent(button_box);
+    GtkWidget *list = gtk_widget_get_parent(ListBoxRow);
+    gtk_list_box_remove(GTK_LIST_BOX(list), ListBoxRow);
 }
 
 static GtkWidget *create_button_box()
