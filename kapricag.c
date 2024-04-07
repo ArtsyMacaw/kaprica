@@ -119,6 +119,7 @@ static void clicked(GtkWidget *button, gpointer user_data)
     }
 }
 
+/* Passes the signal to clicked() */
 static void row_activated(GtkListBox *box, GtkListBoxRow *row,
                           gpointer user_data)
 {
@@ -126,6 +127,24 @@ static void row_activated(GtkListBox *box, GtkListBoxRow *row,
     GtkWidget *button = gtk_widget_get_first_child(button_box);
 
     g_signal_emit_by_name(button, "clicked");
+}
+
+/* When the user presses enter in the search bar, copy the first entry shown */
+static void copy_first_row(GtkSearchEntry *search, gpointer user_data)
+{
+    struct Widgets *widgets = user_data;
+    if (widgets->visible == widgets->no_match ||
+        widgets->visible == widgets->no_entry)
+    {
+        return;
+    }
+
+    GtkWidget *scrolled_window = widgets->visible;
+    GtkWidget *viewport =
+        gtk_scrolled_window_get_child(GTK_SCROLLED_WINDOW(scrolled_window));
+    GtkWidget *list = gtk_viewport_get_child(GTK_VIEWPORT(viewport));
+    GtkListBoxRow *row = gtk_list_box_get_row_at_index(GTK_LIST_BOX(list), 0);
+    row_activated(GTK_LIST_BOX(list), row, NULL);
 }
 
 static void delete_entry(GtkWidget *button, gpointer user_data)
@@ -160,7 +179,7 @@ static GtkWidget *create_entry_button(int64_t id, struct Widgets *widgets)
     thumbnail = database_get_thumbnail(widgets->db, id, &len);
     if (len)
     {
-        /* Convert thumbnail into a gbytes structure so it converted into a
+        /* Convert thumbnail into a gbytes structure so it can be turned into a
          * texture */
         GBytes *pix_array = g_bytes_new(thumbnail, len);
         GdkTexture *texture = gdk_texture_new_from_bytes(pix_array, NULL);
@@ -557,8 +576,6 @@ static void activate(GtkApplication *app, gpointer user_data)
         GTK_SCROLLED_WINDOW(widgets->scrolled_window_search), GTK_POLICY_NEVER,
         GTK_POLICY_AUTOMATIC);
 
-    // TODO: When the user hits enter it should copy the first entry to the
-    // clipboard
     g_signal_connect(widgets->search_bar, "search-changed",
                      G_CALLBACK(search_database), search);
     g_signal_connect(widgets->scrolled_window_search, "edge-reached",
@@ -568,6 +585,8 @@ static void activate(GtkApplication *app, gpointer user_data)
     g_signal_connect_swapped(widgets->close_window, "clicked",
                              G_CALLBACK(gtk_window_destroy),
                              GTK_WINDOW(widgets->window));
+    g_signal_connect(widgets->search_bar, "activate",
+                     G_CALLBACK(copy_first_row), widgets);
 
     /* Setup clear all */
     widgets->clear_all = gtk_button_new_with_label("Clear All");
