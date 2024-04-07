@@ -173,20 +173,23 @@ static void prepare_all_statements(sqlite3 *db)
         "SELECT COUNT(history_id) FROM clipboard_history;";
     prepare_statement(db, get_total_entries, &total_entries);
 
-    const char find_entry[] = "SELECT entry FROM content"
-                              "    WHERE data LIKE '%' || ?1 || '%';";
+    const char find_entry[] = "SELECT DISTINCT entry FROM content"
+                              "    WHERE data LIKE '%' || ?1 || '%'"
+                              "    ORDER BY entry DESC;";
     prepare_statement(db, find_entry, &find_matching_entries);
 
-    const char find_entry_type[] = "SELECT entry FROM content"
-                                   "    WHERE mime_type LIKE '%' || ?1 || '%';";
+    const char find_entry_type[] = "SELECT DISTINCT entry FROM content"
+                                   "    WHERE mime_type LIKE '%' || ?1 || '%'"
+                                   "    ORDER BY entry DESC;";
     prepare_statement(db, find_entry_type, &find_matching_types);
 
     const char find_entry_snippet[] = "SELECT history_id FROM clipboard_history"
                                       "    WHERE snippet=?1;";
     prepare_statement(db, find_entry_snippet, &find_entry_from_snippet);
 
-    const char find_entry_glob[] = "SELECT entry FROM content"
-                                   "    WHERE data GLOB ?1;";
+    const char find_entry_glob[] = "SELECT DISTINCT entry FROM content"
+                                   "    WHERE data GLOB ?1"
+                                   "    ORDER BY entry DESC;";
     prepare_statement(db, find_entry_glob, &find_matching_entries_glob);
 
     const char remove_entry[] = "DELETE FROM clipboard_history"
@@ -390,22 +393,9 @@ uint32_t database_find_matching_entries(sqlite3 *db, void *match, size_t length,
     int counter = 0;
     while (execute_statement(search) != SQLITE_DONE)
     {
-        uint32_t tmp = sqlite3_column_int(search, (ENTRY_BINDING - 1));
-
-        // Ignore repeat matches for the same entry.
-        // There's probably a way to do this solely with SQL,
-        // but I dont know how.
-        if (!counter)
-        {
-            list_of_ids[counter] = tmp;
-            counter++;
-        }
-        else if (list_of_ids[counter - 1] != tmp)
-        {
-            list_of_ids[counter] = tmp;
-            counter++;
-        }
-        if (counter == num_of_entries)
+        list_of_ids[counter] = sqlite3_column_int(search, 0);
+        counter++;
+        if (counter >= num_of_entries)
         {
             break;
         }
