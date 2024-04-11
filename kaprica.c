@@ -303,7 +303,7 @@ static void parse_options(int argc, char *argv[])
             options.paste_once = true;
             break;
         case 't':
-            if (options.action == SEARCH)
+            if (options.action == SEARCH || options.action == DELETE)
             {
                 options.search_type = MIME_TYPE;
             }
