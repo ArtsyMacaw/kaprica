@@ -50,17 +50,19 @@ static struct config options = {
 
 static const char help[] =
     "Usage: kapd [options]\n"
+    "A clipboard manager for Wayland\n"
     "\n"
     "Options:\n"
     "    -h, --help               Show this help message\n"
     "    -v, --version            Show version number\n"
-    "    -D, --database </path>   Specify the path to the database\n"
-    "    -S, --size <(x)KB/MB/GB> Limit the size of the database\n"
-    "    -e, --expire <x-days>    Set the time before an entry in the database "
+    "    -D, --database </path>   Specify the path to the history database\n"
+    "    -S, --size <(x)KB/MB/GB> Limit the size of the history database\n"
+    "    -e, --expire <0-x>       Set the time in days before an entry in the "
+    "history database "
     "is deleted\n"
-    "    -l, --limit <0-x>        Limit the number of entries in the database\n"
-    "    -c, --config </path>     Specify the path to the configuration file\n"
-    "\n";
+    "    -l, --limit <0-x>        Limit the number of entries in the history "
+    "database\n"
+    "    -c, --config </path>     Specify the path to the configuration file\n";
 
 static const struct option arguments[] = {
     {"help", no_argument, NULL, 'h'},

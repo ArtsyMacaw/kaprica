@@ -27,7 +27,7 @@ enum verb
 
 struct config
 {
-    // Add primary support
+    // TODO: Add primary support
     bool newline;
     bool foreground;
     bool listtypes;
@@ -63,12 +63,13 @@ static struct config options = {.foreground = false,
 
 static const char help[] =
     "Usage: kapc [command] [options] <data>\n"
+    "Interact with the Wayland clipboard and history database\n"
     "\n"
     "Commands:\n"
     "    copy   - Copies data to the Wayland clipboard\n"
     "    paste  - Retrieves data from either the clipboard or history\n"
     "    search - Searches through history database\n"
-    "    delete - Deletes an entry from the history database\n"
+    "    delete - Delete entries from the history database\n"
     "Options:\n"
     "    -h, --help            Show this help message\n"
     "    -v, --version         Show version number\n"
@@ -91,6 +92,7 @@ static const char copy_help[] =
     "Usage:\n"
     "    kapc copy [options] text to copy\n"
     "    kapc copy [options] < ./file-to-copy\n"
+    "Copy contents to the Wayland clipboard\n"
     "\n"
     "Options:\n"
     "    -h, --help             Show this help message\n"
@@ -98,12 +100,12 @@ static const char copy_help[] =
     "    -f, --foreground       Stay in foreground instead of forking\n"
     "    -n, --trim-newline     Do not copy the trailing newline\n"
     "    -i, --id               Copy given id to clipboard\n"
-    "    -r, --reverse-search   Looks for a given snippet and copies the entry "
-    "from the database\n"
     "    -o, --paste-once       Only serve one paste request and then exit\n"
     "    -c, --clear            Instead of copying, clear the clipboard\n"
-    "    -t, --type <type>      Manually specify MIME type to offer\n"
-    "    -D, --database </path> Specify the path to the database\n";
+    "    -t, --type <mime/type> Manually specify MIME type to offer\n"
+    "    -D, --database </path> Specify the path to the history database\n"
+    "    -r, --reverse-search   Looks for a given snippet and copies the entry "
+    "from the history database\n";
 
 static const struct option paste[] = {
     {"help", no_argument, NULL, 'h'},
@@ -117,6 +119,7 @@ static const struct option paste[] = {
 
 static const char paste_help[] =
     "Usage: kapc paste [options]\n"
+    "Paste contents from the Wayland clipboard\n"
     "\n"
     "Options:\n"
     "    -h, --help             Show this help message\n"
@@ -124,8 +127,8 @@ static const char paste_help[] =
     "    -l, --list-types       Instead of pasting, list the offered types\n"
     "    -n, --no-newline       Do not add a newline character\n"
     "    -i, --id               Paste one or more id's from history\n"
-    "    -t, --type <type>      Manually specify MIME type to paste\n"
-    "    -D, --database </path> Specify the path to the database\n";
+    "    -t, --type <mime/type> Manually specify MIME type to paste\n"
+    "    -D, --database </path> Specify the path to the history database\n";
 
 static const struct option search[] = {
     {"help", no_argument, NULL, 'h'},
@@ -140,19 +143,20 @@ static const struct option search[] = {
     {0, 0, 0, 0}};
 
 static const char search_help[] =
-    "Usage: kapc search [options] <search-data>\n"
+    "Usage: kapc search [options] <search-term>\n"
+    "Search through the history database\n"
     "\n"
     "Options:\n"
     "    -h, --help             Show this help message\n"
     "    -v, --version          Show version number\n"
-    "    -l, --limit <max>      Limit the number of entries returned from the "
+    "    -l, --limit <0-x>      Limit the number of entries returned from the "
     "search\n"
     "    -i, --id               Show only the ids of the entries found\n"
     "    -s, --snippet          Show only the snippets of the entries found\n"
     "    -t, --type             Search by MIME type\n"
     "    -g, --glob             Search by glob pattern\n"
     "    -L, --list             Output in machine-readable format\n"
-    "    -D, --database </path> Specify the path to the database\n";
+    "    -D, --database </path> Specify the path to the history database\n";
 
 static const struct option delete[] = {
     {"help", no_argument, NULL, 'h'},
@@ -166,18 +170,19 @@ static const struct option delete[] = {
     {0, 0, 0, 0}};
 
 static const char delete_help[] =
-    "Usage: kapc delete [options] <search-data>\n"
+    "Usage: kapc delete [options] <search-term>\n"
+    "Delete entries from the history database\n"
     "\n"
     "Options:\n"
     "    -h, --help             Show this help message\n"
     "    -v, --version          Show version number\n"
-    "    -l, --limit <max>      Limit the number of entries deleted\n"
+    "    -l, --limit <0-x>      Limit the number of entries deleted\n"
     "    -a, --accept           Don't ask for confirmation when deleting "
     "entries\n"
     "    -g, --glob             Search by glob pattern\n"
     "    -t, --type             Delete by MIME type\n"
     "    -i, --id               Delete one or more id's from history\n"
-    "    -D, --database </path> Specify the path to the database\n";
+    "    -D, --database </path> Specify the path to the history database\n";
 
 static void parse_options(int argc, char *argv[])
 {
@@ -235,7 +240,6 @@ static void parse_options(int argc, char *argv[])
      * to 'hide' it from getopt */
     while ((c = getopt_long((argc - 1), (argv + 1), opt_string,
                             (struct option *)action, NULL)) != -1)
-
     {
         switch (c)
         {
