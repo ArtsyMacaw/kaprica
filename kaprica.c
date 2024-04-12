@@ -364,11 +364,18 @@ static bool read_stdin_fd(source_buffer *input)
 {
     input->data[0] = xmalloc(MAX_DATA_SIZE);
     input->len[0] = fread(input->data[0], 1, MAX_DATA_SIZE, stdin);
+    if (input->len[0] == 0)
+    {
+        free(input->data[0]);
+        return false;
+    }
+
     input->data[0] = xrealloc(input->data[0], input->len[0]);
     input->types[0] = NULL;
     input->num_types = 1;
     if (!feof(stdin))
     {
+        free(input->data[0]);
         fprintf(stderr, "File is too large to copy\n");
         return false;
     }
@@ -381,9 +388,13 @@ static bool read_stdin_fd(source_buffer *input)
 /* Concatenates argv with spaces in between */
 static bool concatenate_argv(int args, char *argv[], source_buffer *input)
 {
+    if (args == 0)
+    {
+        return false;
+    }
+
     input->num_types = 1;
     input->types[0] = NULL;
-
     if (args == 1)
     {
         input->data[0] = xstrdup(argv[0]);
@@ -436,6 +447,11 @@ static bool get_stdin(int args, char *input[], source_buffer *output)
 static int64_t *seperate_argv_into_ids(int args, char *argv[],
                                        uint32_t *num_of_ids)
 {
+    if (args == 0)
+    {
+        return NULL;
+    }
+
     int64_t *ids = xmalloc(sizeof(int64_t) * args);
     int64_t tmp;
     for (int i = 0; i < args; i++)
@@ -479,8 +495,17 @@ static int64_t *seperate_stdin_into_ids(uint32_t *num_of_ids)
         {
             (*num_of_ids)++;
         }
+        free(token);
     }
-    ids = xrealloc(ids, sizeof(int64_t) * (*num_of_ids));
+    if (num_of_ids == 0)
+    {
+        free(ids);
+        ids = NULL;
+    }
+    else
+    {
+        ids = xrealloc(ids, sizeof(int64_t) * (*num_of_ids));
+    }
 
     return ids;
 }
@@ -550,6 +575,11 @@ int main(int argc, char *argv[])
             db = database_open(options.db_path);
             uint32_t num_of_ids = 0;
             ids = get_ids(num_of_args, args, &num_of_ids);
+            if (ids == NULL)
+            {
+                goto cleanup;
+            }
+
             if (num_of_ids != 1)
             {
                 fprintf(stderr, "Only one id can be copied at a time\n");
@@ -637,6 +667,10 @@ int main(int argc, char *argv[])
             db = database_open(options.db_path);
             uint32_t num_of_ids = 0;
             ids = get_ids(num_of_args, args, &num_of_ids);
+            if (ids == NULL)
+            {
+                goto cleanup;
+            }
 
             for (int i = 0; i < num_of_ids; i++)
             {
@@ -679,7 +713,10 @@ int main(int argc, char *argv[])
         db = database_open(options.db_path);
         if (!get_stdin(num_of_args, args, src))
         {
-            goto cleanup;
+            src->data[0] = xstrdup("");
+            src->len[0] = 0;
+            src->types[0] = NULL;
+            src->num_types = 1;
         }
 
         if (options.limit == -1)
@@ -733,13 +770,21 @@ int main(int argc, char *argv[])
         if (options.id)
         {
             ids = get_ids(num_of_args, args, &found);
+            if (ids == NULL)
+            {
+                goto cleanup;
+            }
         }
         else
         {
             if (!get_stdin(num_of_args, args, src))
             {
-                goto cleanup;
+                src->data[0] = xstrdup("");
+                src->len[0] = 0;
+                src->types[0] = NULL;
+                src->num_types = 1;
             }
+
             if (options.limit == -1)
             {
                 options.limit = database_get_total_entries(db);
