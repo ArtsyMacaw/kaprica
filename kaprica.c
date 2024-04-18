@@ -377,6 +377,7 @@ static bool read_stdin_fd(source_buffer *input)
     if (input->len[0] == 0)
     {
         free(input->data[0]);
+        fprintf(stderr, "No data to copy\n");
         return false;
     }
 
@@ -400,6 +401,7 @@ static bool concatenate_argv(int args, char *argv[], source_buffer *input)
 {
     if (args == 0)
     {
+        fprintf(stderr, "No data to copy\n");
         return false;
     }
 
@@ -459,6 +461,7 @@ static int64_t *seperate_argv_into_ids(int args, char *argv[],
 {
     if (args == 0)
     {
+        fprintf(stderr, "No ids found\n");
         return NULL;
     }
 
@@ -510,6 +513,7 @@ static int64_t *seperate_stdin_into_ids(uint32_t *num_of_ids)
     if (num_of_ids == 0)
     {
         free(ids);
+        fprintf(stderr, "No ids found\n");
         ids = NULL;
     }
     else
