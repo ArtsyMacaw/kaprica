@@ -36,6 +36,7 @@ struct config
     bool list;
     bool id;
     bool reverse_search;
+    bool password;
     char accept;
     char *db_path;
     bool snippets;
@@ -51,6 +52,7 @@ static struct config options = {.foreground = false,
                                 .list = false,
                                 .id = false,
                                 .reverse_search = false,
+                                .password = false,
                                 .accept = 'n',
                                 .db_path = NULL,
                                 .snippets = false,
@@ -83,6 +85,7 @@ static const struct option copy[] = {{"help", no_argument, NULL, 'h'},
                                      {"paste-once", no_argument, NULL, 'o'},
                                      {"clear", no_argument, NULL, 'c'},
                                      {"id", no_argument, NULL, 'i'},
+                                     {"password", no_argument, NULL, 'p'},
                                      {"type", required_argument, NULL, 't'},
                                      {"reverse-search", no_argument, NULL, 'r'},
                                      {"database", required_argument, NULL, 'D'},
@@ -101,6 +104,8 @@ static const char copy_help[] =
     "    -n, --trim-newline     Do not copy the trailing newline\n"
     "    -i, --id               Copy given id to clipboard\n"
     "    -o, --paste-once       Only serve one paste request and then exit\n"
+    "    -p, --password         Do not save the copied data to the history "
+    "database\n"
     "    -c, --clear            Instead of copying, clear the clipboard\n"
     "    -t, --type <mime/type> Manually specify MIME type to offer\n"
     "    -D, --database </path> Specify the path to the history database\n"
@@ -200,7 +205,7 @@ static void parse_options(int argc, char *argv[])
     if (!strcmp(argv[1], "copy"))
     {
         action = (void *)copy;
-        opt_string = "hfnt:coviD:r";
+        opt_string = "hfnt:coviD:rp";
         options.action = COPY;
     }
     else if (!strcmp(argv[1], "paste"))
@@ -303,6 +308,9 @@ static void parse_options(int argc, char *argv[])
             break;
         case 'o':
             options.paste_once = true;
+            break;
+        case 'p':
+            options.password = true;
             break;
         case 't':
             if (options.action == SEARCH || options.action == DELETE)
@@ -642,6 +650,14 @@ int main(int argc, char *argv[])
         else
         {
             guess_mime_types(src);
+        }
+
+        if (options.password)
+        {
+            src->types[src->num_types] = xstrdup("x-kde-passwordManagerHint");
+            src->data[src->num_types] = xstrdup("password");
+            src->len[src->num_types] = strlen("password");
+            src->num_types++;
         }
 
         clip_set_selection(clip);
