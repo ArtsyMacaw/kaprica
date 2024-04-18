@@ -144,6 +144,7 @@ static const struct option search[] = {
 
 static const char search_help[] =
     "Usage: kapc search [options] <search-term>\n"
+    "    <search-term> can be left empty to return all entries\n"
     "Search through the history database\n"
     "\n"
     "Options:\n"
@@ -171,6 +172,7 @@ static const struct option delete[] = {
 
 static const char delete_help[] =
     "Usage: kapc delete [options] <search-term>\n"
+    "   <search-term> can be left empty to delete all entries\n"
     "Delete entries from the history database\n"
     "\n"
     "Options:\n"
@@ -179,7 +181,7 @@ static const char delete_help[] =
     "    -l, --limit <0-x>      Limit the number of entries deleted\n"
     "    -a, --accept           Don't ask for confirmation when deleting "
     "entries\n"
-    "    -g, --glob             Search by glob pattern\n"
+    "    -g, --glob             Delete by glob pattern\n"
     "    -t, --type             Delete by MIME type\n"
     "    -i, --id               Delete one or more id's from history\n"
     "    -D, --database </path> Specify the path to the history database\n";
@@ -744,7 +746,7 @@ int main(int argc, char *argv[])
             }
             if (!options.id && !options.snippets)
             {
-                printf(" ");
+                printf("\t");
             }
             if (!options.id)
             {

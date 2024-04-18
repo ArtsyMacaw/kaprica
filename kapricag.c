@@ -28,7 +28,7 @@ GOptionEntry entries[] = {{"no-csd", 'n', 0, G_OPTION_ARG_NONE, &options.no_csd,
                            "Disable client-side decorations", NULL},
                           {"database", 'D', 0, G_OPTION_ARG_STRING,
                            &options.database,
-                           "specify the path to the history database", NULL},
+                           "Specify the path to the history database", NULL},
                           {NULL}};
 
 // TODO: Convert UI interface into a blueprint file
