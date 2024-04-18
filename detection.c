@@ -46,6 +46,11 @@ static char *find_exact_type(const void *data, size_t length)
 
 static bool is_text(const void *data, size_t length)
 {
+    if (data == NULL || length == 0)
+    {
+        return false;
+    }
+
     magic_t magic = magic_open(MAGIC_MIME_ENCODING);
     if (!magic)
     {
@@ -90,7 +95,9 @@ static bool is_explicit_text(const char *mime_type)
     /* Known bad mime types that are either not text or not useful */
     if (!strncmp("text/_moz_htmlinfo", mime_type,
                  strlen("text/_moz_htmlinfo")) ||
-        !strncmp("text/ico", mime_type, strlen("text/ico")))
+        !strncmp("text/ico", mime_type, strlen("text/ico")) ||
+        !strncmp("text/_moz_htmlcontext", mime_type,
+                 strlen("text/_moz_htmlcontext")))
     {
         return false;
     }

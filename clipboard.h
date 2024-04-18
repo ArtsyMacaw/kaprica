@@ -74,6 +74,8 @@ offer_buffer *offer_init(void);
 void offer_clear(offer_buffer *ofr);
 void offer_destroy(offer_buffer *ofr);
 bool clip_get_selection(clipboard *clip);
+void *clip_get_selection_type(clipboard *clip, const char *mime_type,
+                              size_t *len);
 void clip_watch(clipboard *clip);
 
 /* Source buffer functions | source.c */

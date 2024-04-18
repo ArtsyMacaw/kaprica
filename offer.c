@@ -208,6 +208,51 @@ bool clip_get_selection(clipboard *clip)
     return true;
 }
 
+void *clip_get_selection_type(clipboard *clip, const char *mime_type,
+                              size_t *len)
+{
+    offer_buffer *ofr = clip->selection_offer;
+
+    int fds[2];
+    if (pipe(fds) == -1)
+    {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    struct pollfd watch_for_data = {.fd = fds[0], .events = POLLIN};
+
+    /* Events need to be dispatched and flushed so the other client
+     * can recieve the fd */
+    zwlr_data_control_offer_v1_receive(ofr->offer, mime_type, fds[1]);
+    wl_display_dispatch_pending(clip->display);
+    wl_display_flush(clip->display);
+
+    /* Allocate max size for simplicity's sake */
+    int wait_time = WAIT_TIME_LONG;
+    void *ret = xmalloc(MAX_DATA_SIZE);
+    *len = 0;
+
+    while (poll(&watch_for_data, 1, wait_time) > 0)
+    {
+        void *sub_array = ret + *len;
+        int bytes_read = read(fds[0], sub_array, READ_SIZE);
+
+        wait_time = WAIT_TIME_LONGEST;
+        *len += bytes_read;
+
+        if (bytes_read < READ_SIZE)
+        {
+            break;
+        }
+    }
+
+    close(fds[0]);
+    close(fds[1]);
+
+    return ret;
+}
+
 offer_buffer *offer_init(void)
 {
     offer_buffer *ofr = xmalloc(sizeof(offer_buffer));
@@ -253,6 +298,7 @@ void offer_clear(offer_buffer *ofr)
         ofr->invalid_data[i] = false;
     }
     ofr->num_types = 0;
+    ofr->password = false;
     if (ofr->offer)
     {
         zwlr_data_control_offer_v1_destroy(ofr->offer);

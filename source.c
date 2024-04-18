@@ -137,12 +137,16 @@ void source_clear(source_buffer *src)
         src->data_hash = NULL;
     }
 
-    free(src->snippet);
+    if (src->snippet)
+    {
+        free(src->snippet);
+    }
     src->snippet = NULL;
 
     src->num_types = 0;
     src->expired = false;
     src->offer_once = false;
+    src->password = false;
 
     /* Sources that are not images won't have a thumbnail */
     if (src->thumbnail)

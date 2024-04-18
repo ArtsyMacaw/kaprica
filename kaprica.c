@@ -534,8 +534,7 @@ static int64_t *get_ids(int args, char *argv[], uint32_t *num_of_ids)
 
 void write_to_stdout(source_buffer *src)
 {
-    int type;
-    bool type_found = false;
+    int8_t type = -1;
     if (options.type)
     {
         for (int i = 0; i < src->num_types; i++)
@@ -543,16 +542,28 @@ void write_to_stdout(source_buffer *src)
             if (!strcmp(src->types[i], options.type))
             {
                 type = i;
-                type_found = true;
+                break;
             }
         }
+        if (type == -1)
+        {
+            fprintf(stderr, "Type %s not found\n", options.type);
+            return;
+        }
     }
-    if (!type_found)
+    if (type == -1)
     {
         type = find_write_type(src);
     }
+
+    if (src->data[type] == NULL)
+    {
+        src->data[type] =
+            clip_get_selection_type(clip, src->types[type], &src->len[type]);
+    }
+
     write(STDOUT_FILENO, src->data[type], src->len[type]);
-    if (!options.newline)
+    if (!options.newline && isatty(STDOUT_FILENO))
     {
         printf("\n");
     }
@@ -571,6 +582,7 @@ int main(int argc, char *argv[])
 
     clip = clip_init();
     source_buffer *src = clip->selection_source;
+    offer_buffer *ofr = clip->selection_offer;
 
     if (options.action == COPY)
     {
@@ -694,7 +706,17 @@ int main(int argc, char *argv[])
             {
                 if (database_get_entry(db, ids[i], src))
                 {
-                    write_to_stdout(src);
+                    if (options.listtypes)
+                    {
+                        for (int j = 0; j < src->num_types; j++)
+                        {
+                            printf("%s\n", src->types[j]);
+                        }
+                    }
+                    else
+                    {
+                        write_to_stdout(src);
+                    }
                     source_clear(src);
                 }
                 else
@@ -708,22 +730,41 @@ int main(int argc, char *argv[])
         clip_watch(clip);
         wl_display_roundtrip(clip->display);
 
-        if (!clip_get_selection(clip))
+        if (ofr->offer == NULL)
         {
-            printf("Buffer is unset\n");
+            fprintf(stderr, "Buffer is empty\n");
             goto cleanup;
+        }
+        while (ofr->num_types == 0)
+        {
+            wl_display_roundtrip(clip->display);
         }
 
         if (options.listtypes)
         {
-            for (int i = 0; i < src->num_types; i++)
+            for (int i = 0; i < ofr->num_types; i++)
             {
-                printf("%s\n", src->types[i]);
+                printf("%s\n", ofr->types[i]);
             }
         }
         else
         {
-            write_to_stdout(src);
+            /* Ugly code that packs the offer_buffer into a source_buffer */
+            source_buffer *tmp = xmalloc(sizeof(source_buffer));
+            tmp->num_types = ofr->num_types;
+            tmp->snippet = NULL;
+            tmp->data_hash = NULL;
+            tmp->source = NULL;
+            tmp->thumbnail = NULL;
+            for (int i = 0; i < ofr->num_types; i++)
+            {
+                tmp->types[i] = xstrdup(ofr->types[i]);
+                tmp->data[i] = NULL;
+                tmp->len[i] = 0;
+            }
+
+            write_to_stdout(tmp);
+            source_destroy(tmp);
         }
     }
     else if (options.action == SEARCH)
