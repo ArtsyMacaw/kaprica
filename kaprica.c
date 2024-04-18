@@ -377,7 +377,7 @@ static bool read_stdin_fd(source_buffer *input)
     if (input->len[0] == 0)
     {
         free(input->data[0]);
-        fprintf(stderr, "No data to copy\n");
+        fprintf(stderr, "No data to copy from file descriptor\n");
         return false;
     }
 
@@ -401,7 +401,7 @@ static bool concatenate_argv(int args, char *argv[], source_buffer *input)
 {
     if (args == 0)
     {
-        fprintf(stderr, "No data to copy\n");
+        fprintf(stderr, "No data to copy from command line\n");
         return false;
     }
 
@@ -445,7 +445,7 @@ static bool concatenate_argv(int args, char *argv[], source_buffer *input)
 
 static bool get_stdin(int args, char *input[], source_buffer *output)
 {
-    if (isatty(STDIN_FILENO))
+    if (isatty(STDIN_FILENO) || args > 0)
     {
         return concatenate_argv(args, input, output);
     }
@@ -526,7 +526,7 @@ static int64_t *seperate_stdin_into_ids(uint32_t *num_of_ids)
 
 static int64_t *get_ids(int args, char *argv[], uint32_t *num_of_ids)
 {
-    if (isatty(STDIN_FILENO))
+    if (isatty(STDIN_FILENO) || args > 0)
     {
         return seperate_argv_into_ids(args, argv, num_of_ids);
     }
