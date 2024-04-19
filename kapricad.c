@@ -18,6 +18,7 @@
 #include "clipboard.h"
 #include "database.h"
 #include "wlr-data-control.h"
+#include "detection.h"
 #include "xmalloc.h"
 
 enum defaults
@@ -29,6 +30,7 @@ enum defaults
     THIRTY_DAYS = 30,
     TEN_ENTRIES = 10,
     TEN_THOUSAND_ENTRIES = 10000,
+    MINIMUM_LENGTH = 6
 };
 
 struct config
@@ -38,6 +40,7 @@ struct config
     uint64_t size;
     uint32_t expire;
     uint64_t limit;
+    size_t min_length;
 };
 
 static struct config options = {
@@ -46,6 +49,7 @@ static struct config options = {
     /* Defaults to 2GB, can't be stored in a enum due to overflow */
     .size = 2147483648,
     .expire = THIRTY_DAYS,
+    .min_length = MINIMUM_LENGTH,
     .limit = TEN_THOUSAND_ENTRIES};
 
 static const char help[] =
@@ -57,6 +61,8 @@ static const char help[] =
     "    -v, --version            Show version number\n"
     "    -D, --database </path>   Specify the path to the history database\n"
     "    -S, --size <(x)KB/MB/GB> Limit the size of the history database\n"
+    "    -m, --min-length <0-x>   Set the minimum length of an entry to be "
+    "saved\n"
     "    -e, --expire <0-x>       Set the time in days before an entry in the "
     "history database "
     "is deleted\n"
@@ -69,6 +75,7 @@ static const struct option arguments[] = {
     {"version", no_argument, NULL, 'v'},
     {"database", required_argument, NULL, 'D'},
     {"size", required_argument, NULL, 'S'},
+    {"min-length", required_argument, NULL, 'm'},
     {"expire", required_argument, NULL, 'e'},
     {"limit", required_argument, NULL, 'l'},
     {"config", required_argument, NULL, 'c'},
@@ -102,7 +109,8 @@ static uint64_t parse_size(const char *size)
 static void parse_options(int argc, char *argv[])
 {
     int c;
-    while ((c = getopt_long(argc, argv, "hvD:S:e:l:c:", arguments, NULL)) != -1)
+    while ((c = getopt_long(argc, argv, "hvD:S:e:l:c:m:", arguments, NULL)) !=
+           -1)
     {
         switch (c)
         {
@@ -117,6 +125,9 @@ static void parse_options(int argc, char *argv[])
             break;
         case 'c':
             options.config = xstrdup(optarg);
+            break;
+        case 'm':
+            options.min_length = strtoull(optarg, NULL, 10);
             break;
         case 'S':
             options.size = parse_size(optarg);
@@ -198,6 +209,13 @@ static void config_handler(void *user, const char *section, const char *name,
         if (options.expire == THIRTY_DAYS)
         {
             options.expire = strtoull(value, NULL, 10);
+        }
+    }
+    else if (strcmp(name, "min-length") == 0)
+    {
+        if (options.min_length == MINIMUM_LENGTH)
+        {
+            options.min_length = strtoull(value, NULL, 10);
         }
     }
     else if (strcmp(name, "limit") == 0)
@@ -316,7 +334,8 @@ int main(int argc, char *argv[])
                 {
                     printf("Password detected, not saving\n");
                 }
-                else
+                else if (is_minimum_length(clip->selection_source,
+                                           options.min_length))
                 {
                     database_insert_entry(db, clip->selection_source);
                     num_of_entries++;

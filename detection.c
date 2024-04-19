@@ -119,6 +119,53 @@ static bool is_image(const char *mime_type)
     return false;
 }
 
+bool is_minimum_length(source_buffer *src, size_t min_length)
+{
+    size_t utf8_text = 0, explicit_text = 0, any_text = 0, binary = 0;
+
+    for (int i = 0; i < src->num_types; i++)
+    {
+        if (is_image(src->types[i]))
+        {
+            return true;
+        }
+        if (is_utf8_text(src->types[i]))
+        {
+            utf8_text = utf8_text > src->len[i] ? utf8_text : src->len[i];
+        }
+        else if (is_explicit_text(src->types[i]))
+        {
+            explicit_text =
+                explicit_text > src->len[i] ? explicit_text : src->len[i];
+        }
+        else if (is_text(src->data[i], src->len[i]))
+        {
+            any_text = any_text > src->len[i] ? any_text : src->len[i];
+        }
+        else
+        {
+            binary = binary > src->len[i] ? binary : src->len[i];
+        }
+    }
+
+    if (utf8_text != 0)
+    {
+        return utf8_text >= min_length;
+    }
+    else if (explicit_text != 0)
+    {
+        return explicit_text >= min_length;
+    }
+    else if (any_text != 0)
+    {
+        return any_text >= min_length;
+    }
+    else
+    {
+        return binary >= min_length;
+    }
+}
+
 void guess_mime_types(source_buffer *src)
 {
     char *exact_type = find_exact_type(src->data[0], src->len[0]);
