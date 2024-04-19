@@ -9,8 +9,7 @@ enum default_sizes
 {
     MAX_MIME_TYPES = 25,
     SNIPPET_SIZE = 80,
-    /* Read 64 KiB the capacity of pipes() buffer */
-    READ_SIZE = 65536,       // FIXME: Assumes 4k page size, fix at some point
+    TWO_MB = 2097152,
     MAX_DATA_SIZE = 52428800 /* 50MB */
 };
 
