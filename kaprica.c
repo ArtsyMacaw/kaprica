@@ -349,6 +349,11 @@ static void parse_options(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
     }
+    if (options.snippets && options.id)
+    {
+        fprintf(stderr, "Cannot use --id and --snippet together\n");
+        exit(EXIT_FAILURE);
+    }
     /* Shift optind back to the correct index */
     optind++;
 }
@@ -377,7 +382,6 @@ static bool read_stdin_fd(source_buffer *input)
     if (input->len[0] == 0)
     {
         free(input->data[0]);
-        fprintf(stderr, "No data to copy from file descriptor\n");
         return false;
     }
 
@@ -401,7 +405,6 @@ static bool concatenate_argv(int args, char *argv[], source_buffer *input)
 {
     if (args == 0)
     {
-        fprintf(stderr, "No data to copy from command line\n");
         return false;
     }
 
@@ -508,9 +511,16 @@ static int64_t *seperate_stdin_into_ids(uint32_t *num_of_ids)
         {
             (*num_of_ids)++;
         }
+
+        free(token);
+        token = NULL;
+    }
+    if (token)
+    {
         free(token);
     }
-    if (num_of_ids == 0)
+
+    if (*num_of_ids == 0)
     {
         free(ids);
         fprintf(stderr, "No ids found\n");
@@ -860,6 +870,15 @@ int main(int argc, char *argv[])
 
         char *input = NULL;
         char tmp = options.accept;
+        FILE *tty = fopen("/dev/tty", "r");
+        if (!tty && (tmp != 'A' && tmp != 'a'))
+        {
+            fprintf(
+                stderr,
+                "Failed accessing tty\n"
+                "If you want to delete without confirmation, use -a flag\n");
+            goto cleanup;
+        }
 
         for (int i = 0; i < found; i++)
         {
@@ -870,7 +889,7 @@ int main(int argc, char *argv[])
                 printf("%s\n", src->snippet);
                 printf("Delete? (Yes/No/All): ");
 
-                getline(&input, &(size_t){0}, stdin);
+                getline(&input, &(size_t){0}, tty);
                 tmp = input[0];
                 free(input);
             }
