@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "clipboard.h"
-#include "wlr-data-control.h"
+#include "protocol/wlr-data-control.h"
 #include "xmalloc.h"
 
 static void

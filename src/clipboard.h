@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include "wlr-data-control.h"
+#include "protocol/wlr-data-control.h"
 
 #ifndef CLIPBOARD_H
 #define CLIPBOARD_H

@@ -14,7 +14,7 @@
 #include "clipboard.h"
 #include "hash.h"
 #include "detection.h"
-#include "wlr-data-control.h"
+#include "protocol/wlr-data-control.h"
 #include "xmalloc.h"
 
 /* By default wait 100ms for the client to start writing data
