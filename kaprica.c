@@ -631,6 +631,7 @@ int main(int argc, char *argv[])
         {
             if (!get_stdin(num_of_args, args, src))
             {
+                fprintf(stderr, "Nothing to copy\n");
                 goto cleanup;
             }
         }
