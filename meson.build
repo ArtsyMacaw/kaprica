@@ -2,6 +2,7 @@ project(
   'kaprica',
   'c',
   license: 'GPLv3',
+  version: 'Pre-release',
   default_options:
   [
     'c_std=c11',
@@ -20,6 +21,7 @@ add_project_arguments(
 
 cc = meson.get_compiler('c')
 
+# Dependencies
 sql = dependency('sqlite3', version: '>=3.6.19')
 wayland = dependency('wayland-client')
 gtk = dependency('gtk4')
@@ -29,6 +31,7 @@ wayland_scanner = find_program('wayland-scanner')
 magic = cc.find_library('magic')
 xxhash = cc.find_library('xxhash')
 
+# Build the wayland data control protocol
 wlr_prot = 'protocol/wlr-data-control-unstable-v1.xml'
 wlr_data = 'wlr-data-control'
 
@@ -43,6 +46,11 @@ glue = custom_target(wlr_data + ' code',
   output: wlr_data + '.c',
   command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@']
 )
+
+# Set defines
+conf_data = configuration_data()
+conf_data.set('PROJECT_VERSION', '"@0@"'.format(meson.project_version()))
+configure_file(output: 'config.h', configuration: conf_data)
 
 lib = static_library(
   wlr_data,
