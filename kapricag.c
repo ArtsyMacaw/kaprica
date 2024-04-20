@@ -20,15 +20,19 @@ struct config
 {
     gboolean no_csd;
     char *database;
+    char *style;
 };
 
-static struct config options = {.no_csd = FALSE, .database = NULL};
+static struct config options = {
+    .no_csd = FALSE, .database = NULL, .style = NULL};
 
 GOptionEntry entries[] = {{"no-csd", 'n', 0, G_OPTION_ARG_NONE, &options.no_csd,
                            "Disable client-side decorations", NULL},
                           {"database", 'D', 0, G_OPTION_ARG_STRING,
                            &options.database,
                            "Specify the path to the history database", NULL},
+                          {"style", 's', 0, G_OPTION_ARG_STRING, &options.style,
+                           "Specify the path to the CSS style sheet", NULL},
                           {NULL}};
 
 // TODO: Convert UI interface into a blueprint file
@@ -422,7 +426,7 @@ static void clear_all_yes(GtkWidget *button, gpointer user_data)
 {
     struct Widgets *widgets = user_data;
 
-    // implement database_clear_all(db);
+    // TODO: implement database_clear_all(db);
     gtk_list_box_remove_all(GTK_LIST_BOX(widgets->entry_list));
 
     gtk_widget_set_hexpand(widgets->close_window, FALSE);
@@ -467,6 +471,29 @@ static void load_entries_async(GTask *task, gpointer task_data,
     g_task_return_pointer(task, buttons, NULL);
 }
 
+static char *find_style_path()
+{
+    char *style_path = NULL;
+    char *xdg_config_home = getenv("XDG_CONFIG_HOME");
+    if (xdg_config_home)
+    {
+        style_path =
+            xmalloc(strlen(xdg_config_home) + strlen("/kaprica/style.css") + 1);
+        strcpy(style_path, xdg_config_home);
+        strcat(style_path, "/kaprica/style.css");
+    }
+    else
+    {
+        char *home = getenv("HOME");
+        style_path =
+            xmalloc(strlen(home) + strlen("/.config/kaprica/style.css") + 1);
+        strcpy(style_path, home);
+        strcat(style_path, "/.config/kaprica/style.css");
+    }
+
+    return (access(style_path, F_OK) == 0) ? style_path : NULL;
+}
+
 static void activate(GtkApplication *app, gpointer user_data)
 {
     struct Widgets *widgets = xmalloc(sizeof(struct Widgets));
@@ -475,6 +502,17 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_window_set_default_size(GTK_WINDOW(widgets->window), WINDOW_WIDTH,
                                 WINDOW_HEIGHT);
     widgets->back_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+
+    /* Load the CSS style sheet if it exists */
+    options.style = (options.style != NULL) ? options.style : find_style_path();
+    if (options.style)
+    {
+        GtkCssProvider *provider = gtk_css_provider_new();
+        gtk_css_provider_load_from_path(provider, options.style);
+        gtk_style_context_add_provider_for_display(
+            gdk_display_get_default(), GTK_STYLE_PROVIDER(provider),
+            GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    }
 
     /* Setup global ALT+ESC shortcut to close the window */
     GtkShortcutTrigger *trigger =
