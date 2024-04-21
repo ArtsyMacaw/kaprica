@@ -275,7 +275,7 @@ void *clip_get_selection_type(clipboard *clip, const char *mime_type,
     close(fds[0]);
     close(fds[1]);
 
-    xrealloc(ret, *len);
+    ret = xrealloc(ret, *len);
 
     return ret;
 }
