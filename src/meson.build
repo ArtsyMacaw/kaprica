@@ -9,8 +9,8 @@ wayland = dependency('wayland-client')
 gtk = dependency('gtk4')
 imagemagick = dependency('MagickWand')
 inih = dependency('inih')
-magic = cc.find_library('magic')
-xxhash = cc.find_library('xxhash')
+magic = dependency('libmagic')
+xxhash = dependency('libxxhash', version: '>=0.8.0')
 
 # Set defines
 conf_data = configuration_data()
