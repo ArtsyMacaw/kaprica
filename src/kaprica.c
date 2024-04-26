@@ -77,7 +77,8 @@ static const char help[] =
     "    -h, --help            Show this help message\n"
     "    -v, --version         Show version number\n"
     "\n"
-    "Use '--help' after a [command] to get more detailed options\n";
+    "Use '--help' after a [command] to get more detailed options\n"
+    "See kapc(1) for more information\n";
 
 static const struct option copy[] = {{"help", no_argument, NULL, 'h'},
                                      {"version", no_argument, NULL, 'v'},

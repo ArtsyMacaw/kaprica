@@ -69,7 +69,8 @@ static const char help[] =
     "is deleted\n"
     "    -l, --limit <0-x>        Limit the number of entries in the history "
     "database\n"
-    "    -c, --config </path>     Specify the path to the configuration file\n";
+    "    -c, --config </path>     Specify the path to the configuration file\n"
+    "See kapd(1) for more information\n";
 
 static const struct option arguments[] = {
     {"help", no_argument, NULL, 'h'},
