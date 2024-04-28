@@ -66,6 +66,7 @@ struct Widgets
     GtkWidget *confirm_no;
     /* Database */
     sqlite3 *db;
+    int64_t data_version;
 };
 
 /* Used to pass around data throughout the entire search process */
@@ -191,6 +192,9 @@ static GtkWidget *create_entry_button(int64_t id, struct Widgets *widgets)
         GtkWidget *image =
             gtk_picture_new_for_paintable(GDK_PAINTABLE(texture));
 
+        g_bytes_unref(pix_array);
+        free(thumbnail);
+
         /* A lot of formatting code to left align the image and fill to fit the
          * button */
         gtk_widget_set_halign(image, GTK_ALIGN_START);
@@ -214,6 +218,8 @@ static GtkWidget *create_entry_button(int64_t id, struct Widgets *widgets)
         snippet = database_get_snippet(widgets->db, id);
         button = gtk_button_new_with_label(snippet);
         GtkWidget *label = gtk_button_get_child(GTK_BUTTON(button));
+
+        free(snippet);
 
         /* Set the label to wrap and left align */
         gtk_label_set_wrap(GTK_LABEL(label), TRUE);
@@ -460,8 +466,8 @@ static void clear_all_yes(GtkWidget *button, gpointer user_data)
     widgets->visible = widgets->no_entry;
 }
 
-static void load_entries_finish(GObject *source_object, GAsyncResult *res,
-                                gpointer user_data)
+static gboolean load_entries_finish(GObject *source_object, GAsyncResult *res,
+                                    gpointer user_data)
 {
     GTask *task = G_TASK(res);
     GtkWidget **buttons = g_task_propagate_pointer(task, NULL);
@@ -472,6 +478,8 @@ static void load_entries_finish(GObject *source_object, GAsyncResult *res,
     {
         gtk_list_box_insert(GTK_LIST_BOX(entry_list), buttons[i], -1);
     }
+
+    return G_SOURCE_REMOVE;
 }
 
 static void load_entries_async(GTask *task, gpointer task_data,
@@ -523,6 +531,7 @@ static void activate(GtkApplication *app, gpointer user_data)
         exit(EXIT_SUCCESS);
     }
 
+    /* Create the main window */
     struct Widgets *widgets = xmalloc(sizeof(struct Widgets));
     widgets->window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(widgets->window), "kaprica");
@@ -578,6 +587,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     GTask *task =
         g_task_new(G_OBJECT(widgets->entry_list), NULL,
                    (GAsyncReadyCallback)load_entries_finish, &load->found);
+    g_task_set_priority(task, G_PRIORITY_LOW);
     g_task_set_task_data(task, load, NULL);
     g_task_run_in_thread(task, (GTaskThreadFunc)load_entries_async);
 
@@ -612,7 +622,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_search_entry_set_placeholder_text(GTK_SEARCH_ENTRY(widgets->search_bar),
                                           "Search...");
     gtk_search_entry_set_search_delay(GTK_SEARCH_ENTRY(widgets->search_bar),
-                                      200);
+                                      300);
     gtk_scrolled_window_set_child(
         GTK_SCROLLED_WINDOW(widgets->scrolled_window_search),
         widgets->search_list);
