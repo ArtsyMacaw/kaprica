@@ -22,6 +22,16 @@ add_project_arguments(
 # Build the executables
 subdir('src')
 
+# Install systemd user service file
+systemd = dependency('systemd', required: get_option('systemd'))
+if systemd.found()
+  systemd_user_unit_dir = systemd.get_pkgconfig_variable('systemduserunitdir')
+  install_data(
+    'kaprica.service',
+    install_dir: '@0@'.format(systemd_user_unit_dir)
+  )
+endif
+
 # Generate man pages if scdoc is available
 scdoc = dependency('scdoc', native: true, required: get_option('man-pages'))
 if scdoc.found()

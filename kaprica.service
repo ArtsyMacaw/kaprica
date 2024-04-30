@@ -1,11 +1,12 @@
 [Unit]
-Description="Kaprica Daemon"
+Description="Clipboard Manager for Wayland"
 After=graphical-session.target
 
 [Service]
-Type=simple
+Type=exec
 ExecStart=kapd
 Restart=on-failure
+RestartSec=5s
 
 [Install]
 WantedBy=graphical-session.target
