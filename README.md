@@ -26,7 +26,11 @@ exec kapd
 Once the daemon is running your clipboard history will be saved to `~/.local/share/kaprica/history.db`.
 ### GUI
 To run the GUI, simply run `kapg`. Its recommended to bind it to a key in your window manager or desktop environment.
-[ExampleMP4](example.mp4)
+
+
+https://github.com/ArtsyMacaw/kaprica/assets/30781379/7460f4b6-9d3a-44e8-84f6-8bb2b7e8119c
+
+
 ### Command Line Interface
 To run the command line interface, use `kapc`:
 
