@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "database.h"
 #include "clipboard.h"
 #include "xmalloc.h"
@@ -559,10 +560,35 @@ bool database_get_entry(sqlite3 *db, int64_t id, source_buffer *src)
     return true;
 }
 
+static void create_database_directory()
+{
+    char *data_home = getenv("XDG_DATA_HOME");
+    if (data_home)
+    {
+        char *dir = xmalloc(strlen(data_home) + strlen("/kaprica") + 1);
+        strcpy(dir, data_home);
+        strcat(dir, "/kaprica");
+        mkdir(dir, 0777);
+        free(dir);
+    }
+    else
+    {
+        data_home = getenv("HOME");
+        char *dir =
+            xmalloc(strlen(data_home) + strlen("/.local/share/kaprica") + 1);
+        strcpy(dir, data_home);
+        strcat(dir, "/.local/share/kaprica");
+        mkdir(dir, 0777);
+        free(dir);
+    }
+}
+
 /* Find $XDG_DATA_HOME/kaprica/history.db or
  * $HOME/.local/share/kaprica/history.db */
-char *find_database_path()
+static char *find_database_path()
 {
+    create_database_directory();
+
     char *data_path = NULL;
     char *data_home = getenv("XDG_DATA_HOME");
     if (data_home)
