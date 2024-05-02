@@ -1,5 +1,5 @@
 # Build the wayland data control protocol
-wayland_scanner = find_program('wayland-scanner')
+wayland_scanner = find_program('wayland-scanner', native: true)
 
 wlr_prot = 'wlr-data-control-unstable-v1.xml'
 wlr_data = 'wlr-data-control'
