@@ -1,5 +1,7 @@
 # Kaprica
-![Example](example.png)
+
+<img src="example.png" align="right" height="215" width="170" />
+
 > A Clipboard Manager for Wayland
 ## What does it do?
 * Tracks all clipboard changes to a history database
