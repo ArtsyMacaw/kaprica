@@ -26,7 +26,7 @@ exec kapd
 Once the daemon is running your clipboard history will be saved to `~/.local/share/kaprica/history.db`.
 ### GUI
 To run the GUI, simply run `kapg`. Its recommended to bind it to a key in your window manager or desktop environment.
-[ExampleGif](example.gif)
+[ExampleMP4](example.mp4)
 ### Command Line Interface
 To run the command line interface, use `kapc`:
 
@@ -49,25 +49,25 @@ kapc delete foobar
 ### Picker Examples
 
 <details>
-  
+
 <summary>fzf</summary>
-  
+
 `kapc search -L | fzf -d $'\t' --with-nth 2 | kapc copy -i`
-  
+
 </details>
 
 <details>
-  
+
 <summary>wofi</summary>
-  
+
 `kapc search -Ls | wofi -S dmenu | kapc copy -r`
 
 </details>
 
 <details>
-  
+
 <summary>tofi</summary>
-  
+
 `kapc search -Ls | rofi -dmenu | kapc copy -r`
 
 </details>
