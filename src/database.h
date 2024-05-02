@@ -45,5 +45,6 @@ uint32_t database_delete_last_entries(sqlite3 *db, uint32_t num_of_entries);
 uint32_t database_delete_duplicate_entries(sqlite3 *db);
 /* Will ignore entries created within the last 24 hours */
 uint32_t database_delete_largest_entries(sqlite3 *db, uint32_t size);
+void database_delete_all_entries(sqlite3 *db);
 
 #endif

@@ -29,7 +29,7 @@ static sqlite3_stmt *select_latest_entries, *select_entry, *select_snippet,
     *select_thumbnail, *total_entries, *select_size;
 /* Deletion statements */
 static sqlite3_stmt *delete_entry, *delete_old_entries, *delete_last_entries,
-    *delete_duplicate_entries, *delete_large_entries;
+    *delete_duplicate_entries, *delete_large_entries, *delete_all_entries;
 
 #define FIVE_HUNDRED_MS 5
 struct timespec one_hundred_ms = {.tv_nsec = 100000000};
@@ -225,6 +225,9 @@ static void prepare_all_statements(sqlite3 *db)
         "            ORDER BY length DESC"
         "            LIMIT ?1);";
     prepare_statement(db, remove_large_entries, &delete_large_entries);
+
+    const char remove_all_entries[] = "DELETE FROM clipboard_history;";
+    prepare_statement(db, remove_all_entries, &delete_all_entries);
 }
 
 static int execute_statement(sqlite3_stmt *stmt)
@@ -648,6 +651,12 @@ sqlite3 *database_open(char *filepath)
     return db;
 }
 
+void database_delete_all_entries(sqlite3 *db)
+{
+    execute_statement(delete_all_entries);
+    sqlite3_reset(delete_all_entries);
+}
+
 void database_maintenance(sqlite3 *db)
 {
     sqlite3_exec(db, "VACUUM;", NULL, NULL, NULL);
@@ -685,6 +694,9 @@ void database_close(sqlite3 *db)
     sqlite3_finalize(pragma_secure_delete);
     sqlite3_finalize(pragma_auto_vacuum);
     sqlite3_finalize(pragma_optimize);
+    sqlite3_finalize(select_size);
+    sqlite3_finalize(find_entry_from_snippet);
+    sqlite3_finalize(delete_all_entries);
     sqlite3_db_release_memory(db);
     sqlite3_close(db);
 }

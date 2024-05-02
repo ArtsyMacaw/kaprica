@@ -453,7 +453,7 @@ static void clear_all_yes(GtkWidget *button, gpointer user_data)
 {
     struct Widgets *widgets = user_data;
 
-    // TODO: implement database_clear_all(db);
+    database_delete_all_entries(widgets->db);
     gtk_list_box_remove_all(GTK_LIST_BOX(widgets->entry_list));
 
     gtk_widget_set_hexpand(widgets->close_window, FALSE);
@@ -589,7 +589,10 @@ static void activate(GtkApplication *app, gpointer user_data)
                    (GAsyncReadyCallback)load_entries_finish, &load->found);
     g_task_set_priority(task, G_PRIORITY_LOW);
     g_task_set_task_data(task, load, NULL);
-    g_task_run_in_thread(task, (GTaskThreadFunc)load_entries_async);
+    if (total_sources > 0)
+    {
+        g_task_run_in_thread(task, (GTaskThreadFunc)load_entries_async);
+    }
 
     gtk_scrolled_window_set_child(
         GTK_SCROLLED_WINDOW(widgets->scrolled_window_entry),
@@ -720,7 +723,7 @@ static void activate(GtkApplication *app, gpointer user_data)
         gtk_widget_set_visible(widgets->close_window, FALSE);
     }
 
-    if (total_sources)
+    if (total_sources > 0)
     {
         gtk_widget_set_visible(widgets->no_entry, FALSE);
         widgets->visible = widgets->scrolled_window_entry;
