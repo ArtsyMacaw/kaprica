@@ -28,7 +28,7 @@ Once the daemon is running your clipboard history will be saved to `~/.local/sha
 To run the GUI, simply run `kapg`. Its recommended to bind it to a key in your window manager or desktop environment.
 
 
-https://github.com/ArtsyMacaw/kaprica/assets/30781379/7460f4b6-9d3a-44e8-84f6-8bb2b7e8119c
+https://github.com/ArtsyMacaw/kaprica/assets/30781379/994bfe64-40ac-4ac7-bf89-22fcdf877d4c
 
 
 ### Command Line Interface
